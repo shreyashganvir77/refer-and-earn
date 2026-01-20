@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 
+const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || '';
+
 const Main = () => {
   const navigate = useNavigate();
   const [user, setUser] = useState(null);
@@ -10,7 +12,7 @@ const Main = () => {
     const fetchUser = async () => {
       try {
         const token = localStorage.getItem('token');
-        const response = await fetch('http://localhost:8000/api/auth/me', {
+        const response = await fetch(`${API_BASE_URL}/api/auth/me`, {
           headers: {
             'Authorization': `Bearer ${token}`
           }
