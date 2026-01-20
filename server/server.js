@@ -7,10 +7,11 @@ process.loadEnvFile(path.resolve(__dirname, '../.env'));
 
 const app = express();
 const PORT = process.env.PORT || 8000;
+const API_BASE_URL = process.env.API_BASE_URL || '';
 
 // Middleware
 app.use(cors({
-  origin: 'http://localhost:3000',
+  origin: API_BASE_URL,
   credentials: true
 }));
 app.use(express.json());
