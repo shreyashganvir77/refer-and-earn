@@ -1,0 +1,15 @@
+# fly.toml app configuration file generated for refer-and-earn on 2026-01-20T15:32:21Z
+#
+# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
+#
+
+app = "refer-and-earn"
+primary_region = "bom"
+
+[build]
+  builder = "heroku/buildpacks:20"
+
+[[statics]]
+  guest_path = "/app/dist"
+  url_prefix = "/"
+
