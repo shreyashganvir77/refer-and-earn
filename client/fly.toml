@@ -7,9 +7,8 @@ app = "refer-and-earn"
 primary_region = "bom"
 
 [build]
-  builder = "heroku/buildpacks:20"
+  builder = "paketobuildpacks/builder-jammy-base"
 
 [[statics]]
-  guest_path = "/app/dist"
+  guest_path = "/workspace/build"
   url_prefix = "/"
-
