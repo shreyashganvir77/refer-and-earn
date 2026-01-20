@@ -3,7 +3,7 @@ const cors = require('cors');
 const path = require('path');
 const nodemailer = require('nodemailer');
 
-process.loadEnvFile(path.resolve(__dirname, '../.env'));
+require('dotenv').config();
 
 const app = express();
 const PORT = process.env.PORT || 8000;
