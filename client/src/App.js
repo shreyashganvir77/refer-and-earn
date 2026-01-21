@@ -1,7 +1,6 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import Login from './pages/Login';
-import Main from './pages/Main';
 import AuthCallback from './pages/AuthCallback';
 import Landing from './pages/Landing';
 import WantReferral from './pages/WantReferral';
