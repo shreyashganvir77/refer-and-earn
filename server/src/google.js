@@ -19,7 +19,7 @@ async function verifyGoogleIdToken(idToken) {
 
   const ticket = await oauthClient.verifyIdToken({
     idToken,
-    audience: getGoogleClientId(),
+    requiredAudience: getGoogleClientId(),
   });
 
   const payload = ticket.getPayload();
