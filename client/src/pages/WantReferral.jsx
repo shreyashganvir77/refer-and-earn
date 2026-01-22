@@ -4,9 +4,11 @@ import CompanyCard from '../components/CompanyCard';
 import ProviderCard from '../components/ProviderCard';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { api } from '../services/api';
+import { useAuth } from '../context/AuthContext';
 
 const WantReferral = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [selectedCompany, setSelectedCompany] = useState(null);
   const [providers, setProviders] = useState([]);
   const [companies, setCompanies] = useState([]);
@@ -14,6 +16,24 @@ const WantReferral = () => {
   const [showProviders, setShowProviders] = useState(false);
   const [loadingCompanies, setLoadingCompanies] = useState(true);
   const [error, setError] = useState(null);
+  const [showResumeModal, setShowResumeModal] = useState(false);
+  const [selectedProvider, setSelectedProvider] = useState(null);
+  const [formData, setFormData] = useState({
+    job_id: '',
+    job_title: '',
+    resume_link: '',
+    phone_number: '',
+    referral_summary: '',
+  });
+  const [wordCount, setWordCount] = useState(0);
+  const [formErrors, setFormErrors] = useState({});
+
+  // Count words in referral summary
+  useEffect(() => {
+    const text = formData.referral_summary.trim();
+    const words = text ? text.split(/\s+/).filter(word => word.length > 0) : [];
+    setWordCount(words.length);
+  }, [formData.referral_summary]);
 
   useEffect(() => {
     let mounted = true;
@@ -59,20 +79,104 @@ const WantReferral = () => {
   };
 
   const handleRequestReferral = (provider) => {
-    // Basic request flow (no payments yet)
-    const companyId = selectedCompany?.company_id;
-    const providerUserId = provider.user_id;
-    const price = provider.price_per_referral;
+    setSelectedProvider(provider);
+    setFormData({
+      job_id: '',
+      job_title: '',
+      resume_link: '',
+      phone_number: '',
+      referral_summary: '',
+    });
+    setFormErrors({});
+    setShowResumeModal(true);
+  };
 
-    if (!companyId || !providerUserId) return;
+  const validateForm = () => {
+    const errors = {};
+    
+    if (!formData.job_id.trim()) {
+      errors.job_id = 'Job ID is required';
+    }
+    
+    if (!formData.job_title.trim()) {
+      errors.job_title = 'Job title is required';
+    }
+    
+    if (!formData.resume_link.trim()) {
+      errors.resume_link = 'Resume link is required';
+    } else {
+      try {
+        new URL(formData.resume_link.trim());
+      } catch {
+        errors.resume_link = 'Please enter a valid URL';
+      }
+    }
+    
+    if (!formData.phone_number.trim()) {
+      errors.phone_number = 'Phone number is required';
+    } else if (formData.phone_number.trim().length < 10) {
+      errors.phone_number = 'Phone number must be at least 10 characters';
+    }
+    
+    if (!formData.referral_summary.trim()) {
+      errors.referral_summary = 'Referral summary is required';
+    } else if (wordCount < 150) {
+      errors.referral_summary = `Referral summary must be at least 150 words (current: ${wordCount} words)`;
+    } else if (wordCount > 300) {
+      errors.referral_summary = `Referral summary must not exceed 300 words (current: ${wordCount} words)`;
+    }
+    
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
 
-    api.createReferral({
-      provider_user_id: providerUserId,
-      company_id: companyId,
-      price_agreed: price ?? 0,
-    })
-      .then(() => alert('Referral request created (pending).'))
-      .catch((e) => alert(e.message || 'Failed to create referral request'));
+  const handleSubmitReferral = async () => {
+    if (!validateForm()) {
+      return;
+    }
+
+    const providerUserId = selectedProvider?.user_id;
+    const price = selectedProvider?.price_per_referral;
+
+    if (!providerUserId) return;
+
+    try {
+      await api.createReferral({
+        provider_user_id: providerUserId,
+        price_agreed: price ?? 0,
+        job_id: formData.job_id.trim(),
+        job_title: formData.job_title.trim(),
+        resume_link: formData.resume_link.trim(),
+        phone_number: formData.phone_number.trim(),
+        referral_summary: formData.referral_summary.trim(),
+      });
+      alert('Referral request created successfully! You will receive a confirmation email shortly.');
+      setShowResumeModal(false);
+      setFormData({
+        job_id: '',
+        job_title: '',
+        resume_link: '',
+        phone_number: '',
+        referral_summary: '',
+      });
+      setFormErrors({});
+      setSelectedProvider(null);
+    } catch (e) {
+      const errorMsg = e.data?.error || e.message || 'Failed to create referral request';
+      alert(errorMsg);
+    }
+  };
+
+  const handleInputChange = (field, value) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+    // Clear error for this field when user starts typing
+    if (formErrors[field]) {
+      setFormErrors(prev => {
+        const next = { ...prev };
+        delete next[field];
+        return next;
+      });
+    }
   };
 
   return (
@@ -87,7 +191,16 @@ const WantReferral = () => {
               ← Back to Home
             </button>
             <h1 className="text-xl font-bold text-gray-900">Want a Referral</h1>
-            <div className="w-24"></div> {/* Spacer for centering */}
+            <div className="flex items-center gap-2">
+              {user?.is_referral_provider && (
+                <button
+                  onClick={() => navigate('/provider/referrals')}
+                  className="px-3 py-2 text-sm font-medium text-gray-700 hover:text-indigo-700 hover:bg-indigo-50 rounded-lg transition-colors"
+                >
+                  Provider Dashboard
+                </button>
+              )}
+            </div>
           </div>
         </div>
       </nav>
@@ -181,6 +294,181 @@ const WantReferral = () => {
           </div>
         )}
       </div>
+
+      {/* Referral Request Modal */}
+      {showResumeModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center px-4 z-50 overflow-y-auto py-8">
+          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full p-6 my-8">
+            <h3 className="text-xl font-bold text-gray-900 mb-2">Request Referral</h3>
+            <p className="text-sm text-gray-600 mb-6">
+              Please fill in all the required information to request a referral.
+            </p>
+
+            <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-2">
+              {/* Job ID */}
+              <div>
+                <label htmlFor="job-id" className="block text-sm font-medium text-gray-700 mb-1">
+                  Job ID <span className="text-red-500">*</span>
+                </label>
+                <input
+                  id="job-id"
+                  type="text"
+                  value={formData.job_id}
+                  onChange={(e) => handleInputChange('job_id', e.target.value)}
+                  placeholder="e.g., JOB-12345"
+                  className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 ${
+                    formErrors.job_id
+                      ? 'border-red-300 focus:ring-red-500'
+                      : 'border-gray-300 focus:ring-indigo-500'
+                  }`}
+                />
+                {formErrors.job_id && (
+                  <p className="mt-1 text-sm text-red-600">{formErrors.job_id}</p>
+                )}
+              </div>
+
+              {/* Job Title */}
+              <div>
+                <label htmlFor="job-title" className="block text-sm font-medium text-gray-700 mb-1">
+                  Job Title <span className="text-red-500">*</span>
+                </label>
+                <input
+                  id="job-title"
+                  type="text"
+                  value={formData.job_title}
+                  onChange={(e) => handleInputChange('job_title', e.target.value)}
+                  placeholder="e.g., Software Engineer"
+                  className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 ${
+                    formErrors.job_title
+                      ? 'border-red-300 focus:ring-red-500'
+                      : 'border-gray-300 focus:ring-indigo-500'
+                  }`}
+                />
+                {formErrors.job_title && (
+                  <p className="mt-1 text-sm text-red-600">{formErrors.job_title}</p>
+                )}
+              </div>
+
+              {/* Resume Link */}
+              <div>
+                <label htmlFor="resume-link" className="block text-sm font-medium text-gray-700 mb-1">
+                  Resume Link <span className="text-red-500">*</span>
+                </label>
+                <input
+                  id="resume-link"
+                  type="url"
+                  value={formData.resume_link}
+                  onChange={(e) => handleInputChange('resume_link', e.target.value)}
+                  placeholder="https://drive.google.com/..."
+                  className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 ${
+                    formErrors.resume_link
+                      ? 'border-red-300 focus:ring-red-500'
+                      : 'border-gray-300 focus:ring-indigo-500'
+                  }`}
+                />
+                {formErrors.resume_link && (
+                  <p className="mt-1 text-sm text-red-600">{formErrors.resume_link}</p>
+                )}
+              </div>
+
+              {/* Phone Number */}
+              <div>
+                <label htmlFor="phone-number" className="block text-sm font-medium text-gray-700 mb-1">
+                  Phone Number <span className="text-red-500">*</span>
+                </label>
+                <input
+                  id="phone-number"
+                  type="tel"
+                  value={formData.phone_number}
+                  onChange={(e) => handleInputChange('phone_number', e.target.value)}
+                  placeholder="e.g., +1 (555) 123-4567"
+                  className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 ${
+                    formErrors.phone_number
+                      ? 'border-red-300 focus:ring-red-500'
+                      : 'border-gray-300 focus:ring-indigo-500'
+                  }`}
+                />
+                {formErrors.phone_number && (
+                  <p className="mt-1 text-sm text-red-600">{formErrors.phone_number}</p>
+                )}
+              </div>
+
+              {/* Referral Summary */}
+              <div>
+                <label htmlFor="referral-summary" className="block text-sm font-medium text-gray-700 mb-1">
+                  Referral Summary <span className="text-red-500">*</span>
+                  <span className="ml-2 text-xs font-normal text-gray-500">
+                    ({wordCount}/150-300 words)
+                  </span>
+                </label>
+                <textarea
+                  id="referral-summary"
+                  value={formData.referral_summary}
+                  onChange={(e) => handleInputChange('referral_summary', e.target.value)}
+                  placeholder="Write a detailed summary explaining why you need this referral, your background, and how you're a good fit for the role (150-300 words)..."
+                  rows={8}
+                  className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 resize-y ${
+                    formErrors.referral_summary
+                      ? 'border-red-300 focus:ring-red-500'
+                      : wordCount < 150 || wordCount > 300
+                      ? 'border-yellow-300 focus:ring-yellow-500'
+                      : 'border-gray-300 focus:ring-indigo-500'
+                  }`}
+                />
+                <div className="mt-1 flex items-center justify-between">
+                  {formErrors.referral_summary ? (
+                    <p className="text-sm text-red-600">{formErrors.referral_summary}</p>
+                  ) : (
+                    <p className="text-xs text-gray-500">
+                      {wordCount < 150
+                        ? `Minimum 150 words required (${150 - wordCount} more needed)`
+                        : wordCount > 300
+                        ? `Maximum 300 words allowed (${wordCount - 300} over limit)`
+                        : 'Word count is valid'}
+                    </p>
+                  )}
+                  <span
+                    className={`text-xs font-medium ${
+                      wordCount < 150 || wordCount > 300
+                        ? 'text-yellow-600'
+                        : 'text-green-600'
+                    }`}
+                  >
+                    {wordCount} words
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-3 mt-6 pt-4 border-t">
+              <button
+                onClick={() => {
+                  setShowResumeModal(false);
+                  setFormData({
+                    job_id: '',
+                    job_title: '',
+                    resume_link: '',
+                    phone_number: '',
+                    referral_summary: '',
+                  });
+                  setFormErrors({});
+                  setSelectedProvider(null);
+                }}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSubmitReferral}
+                disabled={wordCount < 150 || wordCount > 300}
+                className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Submit Request
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

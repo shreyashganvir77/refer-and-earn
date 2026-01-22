@@ -7,6 +7,8 @@ import WantReferral from './pages/WantReferral';
 import GiveReferral from './pages/GiveReferral';
 import ProfileCompletion from './pages/ProfileCompletion';
 import { useAuth } from './context/AuthContext';
+import ProviderReferrals from './pages/ProviderReferrals';
+import MyReferrals from './pages/MyReferrals';
 
 function App() {
   const { isAuthenticated, loading, isProfileComplete } = useAuth();
@@ -52,6 +54,18 @@ function App() {
         <Route 
           path="/give-referral" 
           element={isAuthenticated ? <GiveReferral /> : <Navigate to="/login" replace />} 
+        />
+        <Route
+          path="/provider/referrals"
+          element={
+            isAuthenticated ? <ProviderReferrals /> : <Navigate to="/login" replace />
+          }
+        />
+        <Route
+          path="/my-referrals"
+          element={
+            isAuthenticated ? <MyReferrals /> : <Navigate to="/login" replace />
+          }
         />
       </Routes>
     </Router>

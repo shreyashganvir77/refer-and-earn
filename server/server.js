@@ -25,6 +25,8 @@ function toUserDto(row) {
   return {
     user_id: String(row.user_id),
     full_name: row.full_name,
+    // Expose profile picture URL as `picture` for frontend
+    picture: row.picture_url || null,
     email: row.email,
     company_id: row.company_id != null ? String(row.company_id) : null,
     role_designation: row.role_designation,
@@ -60,7 +62,7 @@ function parseBigIntParam(value) {
   }
 }
 
-const ALLOWED_REQUEST_STATUSES = new Set(['pending', 'accepted', 'completed', 'rejected']);
+const ALLOWED_REQUEST_STATUSES = new Set(['PENDING', 'ACCEPTED', 'COMPLETED', 'REJECTED']);
 
 // In-memory OTP store: { [userId: string]: { code, email, expiresAt } }
 const otpStore = new Map();
@@ -126,6 +128,140 @@ If you did not request this, you can ignore this email.`;
   });
 }
 
+async function sendReferralRequestEmailToRequester({ to, requesterName, jobId, jobTitle, companyName }) {
+  if (!gmailUser || !gmailPass || !mailTransporter) {
+    console.warn('Email not configured, skipping requester notification');
+    return;
+  }
+
+  const from = `"${gmailFromName}" <${gmailUser}>`;
+  const subject = 'Referral Request Submitted – Pending';
+  const text = `Hi ${requesterName},
+
+Your referral request has been successfully submitted and is now pending.
+
+Details:
+- Job ID: ${jobId || 'N/A'}
+- Job Title: ${jobTitle || 'N/A'}
+- Provider Company: ${companyName || 'N/A'}
+- Status: Pending
+
+The referral provider will review your request and update the status accordingly.
+
+Best regards,
+Refer & Earn Platform`;
+
+  const html = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <h2 style="color: #4F46E5;">Referral Request Submitted</h2>
+      <p>Hi ${requesterName},</p>
+      <p>Your referral request has been successfully submitted and is now <strong>pending</strong>.</p>
+      <div style="background-color: #F3F4F6; padding: 16px; border-radius: 8px; margin: 20px 0;">
+        <p><strong>Job ID:</strong> ${jobId || 'N/A'}</p>
+        <p><strong>Job Title:</strong> ${jobTitle || 'N/A'}</p>
+        <p><strong>Provider Company:</strong> ${companyName || 'N/A'}</p>
+        <p><strong>Status:</strong> <span style="color: #F59E0B; font-weight: bold;">Pending</span></p>
+      </div>
+      <p>The referral provider will review your request and update the status accordingly.</p>
+      <p>Best regards,<br>Refer & Earn Platform</p>
+    </div>
+  `;
+
+  try {
+    await mailTransporter.sendMail({
+      from,
+      to,
+      subject,
+      text,
+      html,
+    });
+  } catch (error) {
+    console.error('Failed to send requester email:', error);
+    throw error;
+  }
+}
+
+async function sendReferralRequestEmailToProvider({ to, providerName, requesterName, requesterEmail, requesterPhone, jobId, jobTitle, resumeLink, referralSummary }) {
+  if (!gmailUser || !gmailPass || !mailTransporter) {
+    console.warn('Email not configured, skipping provider notification');
+    return;
+  }
+
+  const from = `"${gmailFromName}" <${gmailUser}>`;
+  const subject = 'New Referral Request for Your Company';
+  const text = `Hi ${providerName},
+
+You have received a new referral request for your company.
+
+Requester Details:
+- Name: ${requesterName}
+- Email: ${requesterEmail}
+- Phone: ${requesterPhone || 'N/A'}
+
+Job Details:
+- Job ID: ${jobId || 'N/A'}
+- Job Title: ${jobTitle || 'N/A'}
+
+Resume Link: ${resumeLink || 'N/A'}
+
+Referral Summary (${referralSummary ? referralSummary.split(/\s+/).length : 0} words):
+${referralSummary || 'N/A'}
+
+Please review the request and mark it as completed once you have provided the referral.
+
+Best regards,
+Refer & Earn Platform`;
+
+  const html = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <h2 style="color: #4F46E5;">New Referral Request</h2>
+      <p>Hi ${providerName},</p>
+      <p>You have received a new referral request for your company.</p>
+      
+      <div style="background-color: #F3F4F6; padding: 16px; border-radius: 8px; margin: 20px 0;">
+        <h3 style="margin-top: 0; color: #1F2937;">Requester Details</h3>
+        <p><strong>Name:</strong> ${requesterName}</p>
+        <p><strong>Email:</strong> <a href="mailto:${requesterEmail}">${requesterEmail}</a></p>
+        <p><strong>Phone:</strong> ${requesterPhone || 'N/A'}</p>
+      </div>
+
+      <div style="background-color: #F3F4F6; padding: 16px; border-radius: 8px; margin: 20px 0;">
+        <h3 style="margin-top: 0; color: #1F2937;">Job Details</h3>
+        <p><strong>Job ID:</strong> ${jobId || 'N/A'}</p>
+        <p><strong>Job Title:</strong> ${jobTitle || 'N/A'}</p>
+      </div>
+
+      <div style="margin: 20px 0;">
+        <p><strong>Resume Link:</strong> <a href="${resumeLink || '#'}" target="_blank">${resumeLink || 'N/A'}</a></p>
+      </div>
+
+      <div style="background-color: #EFF6FF; padding: 16px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #4F46E5;">
+        <h3 style="margin-top: 0; color: #1F2937;">Referral Summary</h3>
+        <p style="white-space: pre-wrap; line-height: 1.6;">${referralSummary || 'N/A'}</p>
+        <p style="font-size: 12px; color: #6B7280; margin-top: 8px;">
+          (${referralSummary ? referralSummary.split(/\s+/).length : 0} words)
+        </p>
+      </div>
+
+      <p>Please review the request and mark it as completed once you have provided the referral.</p>
+      <p>Best regards,<br>Refer & Earn Platform</p>
+    </div>
+  `;
+
+  try {
+    await mailTransporter.sendMail({
+      from,
+      to,
+      subject,
+      text,
+      html,
+    });
+  } catch (error) {
+    console.error('Failed to send provider email:', error);
+    throw error;
+  }
+}
+
 async function getUserWithCompanyById(userId) {
   const pool = await getPool();
   const result = await pool.request()
@@ -142,6 +278,7 @@ async function getUserWithCompanyById(userId) {
     user_id: row.user_id,
     full_name: row.full_name,
     email: row.email,
+    picture_url: row.picture_url,
     company_id: row.company_id,
     role_designation: row.role_designation,
     years_experience: row.years_experience,
@@ -167,7 +304,7 @@ async function getUserWithCompanyById(userId) {
 async function authGoogleHandler(req, res) {
   try {
     const { idToken } = req.body || {};
-    const { email, fullName } = await verifyGoogleIdToken(idToken);
+    const { email, fullName, picture } = await verifyGoogleIdToken(idToken);
 
     const pool = await getPool();
 
@@ -184,10 +321,12 @@ async function authGoogleHandler(req, res) {
         .input('user_id', sql.BigInt, existing.user_id)
         .input('full_name', sql.NVarChar(200), fullName)
         .input('password_hash', sql.NVarChar(255), 'GOOGLE_OAUTH')
+        .input('picture_url', sql.NVarChar(500), picture)
         .query(`
           UPDATE users
           SET full_name = @full_name,
               password_hash = @password_hash,
+              picture_url = @picture_url,
               updated_at = SYSUTCDATETIME()
           WHERE user_id = @user_id
         `);
@@ -200,10 +339,11 @@ async function authGoogleHandler(req, res) {
         .input('full_name', sql.NVarChar(200), fullName)
         .input('email', sql.NVarChar(320), email)
         .input('password_hash', sql.NVarChar(255), 'GOOGLE_OAUTH')
+        .input('picture_url', sql.NVarChar(500), picture)
         .query(`
-          INSERT INTO users (full_name, email, password_hash, created_at, updated_at)
+          INSERT INTO users (full_name, email, password_hash, picture_url, created_at, updated_at)
           OUTPUT INSERTED.*
-          VALUES (@full_name, @email, @password_hash, SYSUTCDATETIME(), SYSUTCDATETIME())
+          VALUES (@full_name, @email, @password_hash, @picture_url, SYSUTCDATETIME(), SYSUTCDATETIME())
         `);
       user = result.recordset[0];
       company = null;
@@ -397,6 +537,7 @@ app.get('/companies/:companyId/providers', async (req, res) => {
       user_id: row.user_id,
       full_name: row.full_name,
       email: row.email,
+      picture_url: row.picture_url,
       company_id: row.company_id,
       role_designation: row.role_designation,
       years_experience: row.years_experience,
@@ -424,45 +565,257 @@ app.get('/companies/:companyId/providers', async (req, res) => {
   return res.json({ providers });
 });
 
+// ---- Provider: list referrals assigned to provider ----
+app.get('/api/provider/referrals', requireAuth, async (req, res) => {
+  const providerUserId = parseBigIntParam(req.auth.sub);
+  if (!providerUserId) return res.status(401).json({ error: 'Unauthorized' });
+
+  const pool = await getPool();
+  const result = await pool.request()
+    .input('provider_user_id', sql.BigInt, providerUserId)
+    .query(`
+      SELECT
+        rr.request_id,
+        rr.company_id,
+        rr.requester_user_id,
+        rr.provider_user_id,
+        rr.status,
+        rr.resume_link,
+        rr.job_id,
+        rr.job_title,
+        rr.phone_number,
+        rr.referral_summary,
+        rr.created_at,
+        rr.updated_at,
+        c.company_name,
+        c.logo_url,
+        ru.full_name AS requester_name,
+        ru.email AS requester_email,
+        ru.role_designation AS requester_role
+      FROM referral_requests rr
+      LEFT JOIN companies c ON rr.company_id = c.company_id
+      LEFT JOIN users ru ON rr.requester_user_id = ru.user_id
+      WHERE rr.provider_user_id = @provider_user_id
+      ORDER BY rr.created_at DESC
+    `);
+
+  const referrals = result.recordset.map((row) => ({
+    id: String(row.request_id),
+    requester_name: row.requester_name || 'Unknown',
+    requester_email: row.requester_email || '',
+    requester_role: row.requester_role || '',
+    company_name: row.company_name || '',
+    company_logo: row.logo_url || '',
+    resume_link: row.resume_link || '',
+    job_id: row.job_id || '',
+    job_title: row.job_title || '',
+    phone_number: row.phone_number || '',
+    referral_summary: row.referral_summary || '',
+    status: row.status,
+    created_at: row.created_at,
+    completed_at: row.status === 'COMPLETED' ? row.updated_at : null,
+  }));
+
+  return res.json({ referrals });
+});
+
+// ---- Provider: mark referral completed ----
+app.post('/api/referrals/:id/complete', requireAuth, async (req, res) => {
+  const providerUserId = parseBigIntParam(req.auth.sub);
+  if (!providerUserId) return res.status(401).json({ error: 'Unauthorized' });
+
+  const requestId = parseBigIntParam(req.params.id);
+  if (!requestId) return res.status(400).json({ error: 'Invalid id' });
+
+  const pool = await getPool();
+
+  // Verify ownership and status
+  const existingResult = await pool.request()
+    .input('request_id', sql.BigInt, requestId)
+    .query('SELECT TOP 1 * FROM referral_requests WHERE request_id = @request_id');
+  const existing = existingResult.recordset[0];
+  if (!existing) return res.status(404).json({ error: 'Not found' });
+  if (String(existing.provider_user_id) !== String(providerUserId)) {
+    return res.status(403).json({ error: 'Forbidden' });
+  }
+  if (existing.status === 'COMPLETED') {
+    return res.json({ referral_request: existing });
+  }
+  if (existing.status !== 'PENDING') {
+    return res.status(400).json({ error: 'Can only complete pending referrals' });
+  }
+
+  const updateResult = await pool.request()
+    .input('request_id', sql.BigInt, requestId)
+    .query(`
+      UPDATE referral_requests
+      SET status = 'COMPLETED',
+          updated_at = SYSUTCDATETIME()
+      OUTPUT INSERTED.*
+      WHERE request_id = @request_id
+    `);
+
+  return res.json({ referral_request: updateResult.recordset[0] });
+});
+
 // ---- Referral requests ----
 app.post('/referrals', requireAuth, async (req, res) => {
   const requesterUserId = parseBigIntParam(req.auth.sub);
   if (!requesterUserId) return res.status(401).json({ error: 'Unauthorized' });
 
-  const { provider_user_id, company_id, price_agreed } = req.body || {};
+  const { provider_user_id, price_agreed, resume_link, job_id, job_title, phone_number, referral_summary } = req.body || {};
   const providerUserId = parseBigIntParam(provider_user_id);
-  const companyId = parseBigIntParam(company_id);
   const price = Number(price_agreed);
 
-  if (!providerUserId || !companyId || Number.isNaN(price) || price < 0) {
-    return res.status(400).json({ error: 'Invalid payload' });
+  // Validate required fields
+  if (!providerUserId) {
+    return res.status(400).json({ error: 'provider_user_id is required' });
   }
-  if (providerUserId === requesterUserId) return res.status(400).json({ error: 'Cannot request referral from yourself' });
+  if (Number.isNaN(price) || price < 0) {
+    return res.status(400).json({ error: 'Invalid price_agreed' });
+  }
+  if (!resume_link || typeof resume_link !== 'string' || resume_link.trim().length === 0) {
+    return res.status(400).json({ error: 'resume_link is required' });
+  }
+  if (!job_id || typeof job_id !== 'string' || job_id.trim().length === 0) {
+    return res.status(400).json({ error: 'job_id is required' });
+  }
+  if (!job_title || typeof job_title !== 'string' || job_title.trim().length === 0) {
+    return res.status(400).json({ error: 'job_title is required' });
+  }
+  if (!phone_number || typeof phone_number !== 'string' || phone_number.trim().length === 0) {
+    return res.status(400).json({ error: 'phone_number is required' });
+  }
+  if (!referral_summary || typeof referral_summary !== 'string' || referral_summary.trim().length === 0) {
+    return res.status(400).json({ error: 'referral_summary is required' });
+  }
+
+  // Validate referral_summary word count (150-300 words)
+  const wordCount = referral_summary.split(/\s+/).filter(Boolean).length;
+  if (wordCount < 150 || wordCount > 300) {
+    return res.status(400).json({ 
+      error: `referral_summary must be between 150 and 300 words (current: ${wordCount} words)` 
+    });
+  }
+
+  if (providerUserId === requesterUserId) {
+    return res.status(400).json({ error: 'Cannot request referral from yourself' });
+  }
 
   const pool = await getPool();
 
-  // Validate provider is referral provider
+  // Validate provider is referral provider and get their company_id
   const providerResult = await pool.request()
     .input('user_id', sql.BigInt, providerUserId)
-    .query('SELECT TOP 1 is_referral_provider FROM users WHERE user_id = @user_id');
+    .query('SELECT TOP 1 is_referral_provider, company_id FROM users WHERE user_id = @user_id');
   const provider = providerResult.recordset[0];
-  if (!provider || !provider.is_referral_provider) return res.status(404).json({ error: 'Provider not found' });
+  if (!provider || !provider.is_referral_provider) {
+    return res.status(404).json({ error: 'Provider not found or not a referral provider' });
+  }
+  if (!provider.company_id) {
+    return res.status(400).json({ error: 'Provider must have a company assigned' });
+  }
 
+  // Get requester and provider details for emails
+  const requesterResult = await pool.request()
+    .input('user_id', sql.BigInt, requesterUserId)
+    .query('SELECT TOP 1 full_name, email FROM users WHERE user_id = @user_id');
+  const requester = requesterResult.recordset[0];
+  if (!requester) {
+    return res.status(404).json({ error: 'Requester not found' });
+  }
+
+  const providerDetailsResult = await pool.request()
+    .input('user_id', sql.BigInt, providerUserId)
+    .query('SELECT TOP 1 full_name, email FROM users WHERE user_id = @user_id');
+  const providerDetails = providerDetailsResult.recordset[0];
+
+  // Get company name
+  const companyResult = await pool.request()
+    .input('company_id', sql.BigInt, provider.company_id)
+    .query('SELECT TOP 1 company_name FROM companies WHERE company_id = @company_id');
+  const company = companyResult.recordset[0];
+
+  // Insert referral request
   const insertResult = await pool.request()
     .input('requester_user_id', sql.BigInt, requesterUserId)
     .input('provider_user_id', sql.BigInt, providerUserId)
-    .input('company_id', sql.BigInt, companyId)
-    .input('status', sql.NVarChar(20), 'pending')
+    .input('company_id', sql.BigInt, provider.company_id)
+    .input('status', sql.NVarChar(20), 'PENDING')
     .input('price_agreed', sql.Decimal(10, 2), price)
+    .input('resume_link', sql.NVarChar(1000), resume_link.trim())
+    .input('job_id', sql.NVarChar(200), job_id.trim())
+    .input('job_title', sql.NVarChar(300), job_title.trim())
+    .input('phone_number', sql.NVarChar(20), phone_number.trim())
+    .input('referral_summary', sql.NVarChar(2000), referral_summary.trim())
     .query(`
       INSERT INTO referral_requests
-        (requester_user_id, provider_user_id, company_id, status, price_agreed, created_at, updated_at)
+        (requester_user_id, provider_user_id, company_id, status, price_agreed, resume_link, 
+         job_id, job_title, phone_number, referral_summary, created_at, updated_at)
       OUTPUT INSERTED.*
       VALUES
-        (@requester_user_id, @provider_user_id, @company_id, @status, @price_agreed, SYSUTCDATETIME(), SYSUTCDATETIME())
+        (@requester_user_id, @provider_user_id, @company_id, @status, @price_agreed, @resume_link,
+         @job_id, @job_title, @phone_number, @referral_summary, SYSUTCDATETIME(), SYSUTCDATETIME())
     `);
 
-  return res.status(201).json({ referral_request: insertResult.recordset[0] });
+  const newRequest = insertResult.recordset[0];
+  const requestId = newRequest.request_id;
+
+  // Send emails asynchronously (don't block response)
+  Promise.all([
+    // Email to requester
+    (async () => {
+      try {
+        await sendReferralRequestEmailToRequester({
+          to: requester.email,
+          requesterName: requester.full_name,
+          jobId: job_id.trim(),
+          jobTitle: job_title.trim(),
+          companyName: company?.company_name || 'N/A',
+        });
+        // Update requester_email_sent_at
+        await pool.request()
+          .input('request_id', sql.BigInt, requestId)
+          .query(`
+            UPDATE referral_requests
+            SET requester_email_sent_at = SYSUTCDATETIME()
+            WHERE request_id = @request_id
+          `);
+      } catch (error) {
+        console.error('Failed to send requester email:', error);
+      }
+    })(),
+    // Email to provider
+    (async () => {
+      try {
+        await sendReferralRequestEmailToProvider({
+          to: providerDetails?.email,
+          providerName: providerDetails?.full_name || 'Provider',
+          requesterName: requester.full_name,
+          requesterEmail: requester.email,
+          requesterPhone: phone_number.trim(),
+          jobId: job_id.trim(),
+          jobTitle: job_title.trim(),
+          resumeLink: resume_link.trim(),
+          referralSummary: referral_summary.trim(),
+        });
+        // Update provider_email_sent_at
+        await pool.request()
+          .input('request_id', sql.BigInt, requestId)
+          .query(`
+            UPDATE referral_requests
+            SET provider_email_sent_at = SYSUTCDATETIME()
+            WHERE request_id = @request_id
+          `);
+      } catch (error) {
+        console.error('Failed to send provider email:', error);
+      }
+    })(),
+  ]).catch(err => {
+    console.error('Email sending error:', err);
+  });
+
+  return res.status(201).json({ referral_request: newRequest });
 });
 
 app.get('/referrals/requested', requireAuth, async (req, res) => {
@@ -473,11 +826,38 @@ app.get('/referrals/requested', requireAuth, async (req, res) => {
   const result = await pool.request()
     .input('requester_user_id', sql.BigInt, requesterUserId)
     .query(`
-      SELECT * FROM referral_requests
-      WHERE requester_user_id = @requester_user_id
-      ORDER BY created_at DESC
+      SELECT
+        rr.*,
+        c.company_name,
+        c.logo_url,
+        pu.full_name AS provider_name,
+        pu.email AS provider_email
+      FROM referral_requests rr
+      LEFT JOIN companies c ON rr.company_id = c.company_id
+      LEFT JOIN users pu ON rr.provider_user_id = pu.user_id
+      WHERE rr.requester_user_id = @requester_user_id
+      ORDER BY rr.created_at DESC
     `);
-  return res.json({ referrals: result.recordset });
+  
+  const referrals = result.recordset.map((row) => ({
+    id: String(row.request_id),
+    provider_name: row.provider_name || 'Unknown',
+    provider_email: row.provider_email || '',
+    company_name: row.company_name || '',
+    company_logo: row.logo_url || '',
+    job_id: row.job_id || '',
+    job_title: row.job_title || '',
+    phone_number: row.phone_number || '',
+    resume_link: row.resume_link || '',
+    referral_summary: row.referral_summary || '',
+    status: row.status,
+    price_agreed: row.price_agreed,
+    created_at: row.created_at,
+    updated_at: row.updated_at,
+    completed_at: row.status === 'COMPLETED' ? row.updated_at : null,
+  }));
+  
+  return res.json({ referrals });
 });
 
 app.get('/referrals/received', requireAuth, async (req, res) => {
@@ -547,6 +927,20 @@ app.post('/providers/:providerId/reviews', requireAuth, async (req, res) => {
   const pool = await getPool();
 
   // Enforce "one review per provider per user"
+  // Ensure requester has at least one completed referral with this provider
+  const completedReferral = await pool.request()
+    .input('provider_user_id', sql.BigInt, providerUserId)
+    .input('requester_user_id', sql.BigInt, givenByUserId)
+    .query(`
+      SELECT TOP 1 request_id FROM referral_requests
+      WHERE provider_user_id = @provider_user_id
+        AND requester_user_id = @requester_user_id
+        AND status = 'COMPLETED'
+    `);
+  if (completedReferral.recordset.length === 0) {
+    return res.status(403).json({ error: 'Rating allowed only after a completed referral' });
+  }
+
   const existing = await pool.request()
     .input('provider_user_id', sql.BigInt, providerUserId)
     .input('given_by_user_id', sql.BigInt, givenByUserId)

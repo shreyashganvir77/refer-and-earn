@@ -1,9 +1,18 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
+import ProviderReferrals from './ProviderReferrals';
 
 const GiveReferral = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
 
+  // If user is a referral provider, show the provider dashboard
+  if (user?.is_referral_provider) {
+    return <ProviderReferrals />;
+  }
+
+  // Otherwise show the "coming soon" message
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-purple-100">
       <nav className="bg-white shadow-sm mb-8">

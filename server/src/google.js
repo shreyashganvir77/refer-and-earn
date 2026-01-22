@@ -34,6 +34,7 @@ async function verifyGoogleIdToken(idToken) {
   const fullName = payload.name || payload.given_name || 'User';
   const emailVerified = payload.email_verified;
   const googleUserId = payload.sub;
+  const picture = payload.picture || null;
 
   if (!email || !emailVerified) {
     const err = new Error('Google account email must be verified');
@@ -41,7 +42,7 @@ async function verifyGoogleIdToken(idToken) {
     throw err;
   }
 
-  return { email, fullName, googleUserId };
+  return { email, fullName, googleUserId, picture };
 }
 
 module.exports = { verifyGoogleIdToken };

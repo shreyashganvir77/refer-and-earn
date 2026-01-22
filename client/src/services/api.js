@@ -45,8 +45,11 @@ export const api = {
       method: 'POST',
       body: { code },
     }),
+  providerReferrals: () => request('/api/provider/referrals'),
+  completeReferral: (id) => request(`/api/referrals/${id}/complete`, { method: 'POST' }),
   companies: () => request('/companies', { auth: false }),
   providersByCompany: (companyId) => request(`/companies/${companyId}/providers`, { auth: false }),
   createReferral: (payload) => request('/referrals', { method: 'POST', body: payload }),
+  requestedReferrals: () => request('/referrals/requested'),
 };
 
