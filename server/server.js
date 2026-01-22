@@ -19,6 +19,14 @@ app.use(express.json());
 const { getPool, sql } = require('./src/db');
 const { verifyGoogleIdToken } = require('./src/google');
 const { signSessionJwt, requireAuth } = require('./src/auth');
+const {
+  createPaymentOrder,
+  verifyPayment,
+  releasePaymentToProvider,
+  refundPayment,
+  verifyWebhookSignature,
+  handleWebhookEvent,
+} = require('./src/payments');
 
 function toUserDto(row) {
   if (!row) return null;
@@ -645,6 +653,11 @@ app.post('/api/referrals/:id/complete', requireAuth, async (req, res) => {
     return res.status(400).json({ error: 'Can only complete pending referrals' });
   }
 
+  // Check if payment is PAID before allowing completion
+  if (existing.payment_status !== 'PAID' && existing.payment_status !== 'RELEASED') {
+    return res.status(400).json({ error: 'Payment must be completed before marking referral as completed' });
+  }
+
   const updateResult = await pool.request()
     .input('request_id', sql.BigInt, requestId)
     .query(`
@@ -654,6 +667,16 @@ app.post('/api/referrals/:id/complete', requireAuth, async (req, res) => {
       OUTPUT INSERTED.*
       WHERE request_id = @request_id
     `);
+
+  // Release payment to provider (async, don't block response)
+  releasePaymentToProvider(requestId, providerUserId)
+    .then((result) => {
+      console.log('Payment released to provider:', result);
+    })
+    .catch((error) => {
+      console.error('Failed to release payment to provider:', error);
+      // Log error but don't fail the request
+    });
 
   return res.json({ referral_request: updateResult.recordset[0] });
 });
@@ -736,7 +759,7 @@ app.post('/referrals', requireAuth, async (req, res) => {
     .query('SELECT TOP 1 company_name FROM companies WHERE company_id = @company_id');
   const company = companyResult.recordset[0];
 
-  // Insert referral request
+  // Insert referral request (payment_status defaults to UNPAID)
   const insertResult = await pool.request()
     .input('requester_user_id', sql.BigInt, requesterUserId)
     .input('provider_user_id', sql.BigInt, providerUserId)
@@ -751,11 +774,11 @@ app.post('/referrals', requireAuth, async (req, res) => {
     .query(`
       INSERT INTO referral_requests
         (requester_user_id, provider_user_id, company_id, status, price_agreed, resume_link, 
-         job_id, job_title, phone_number, referral_summary, created_at, updated_at)
+         job_id, job_title, phone_number, referral_summary, payment_status, created_at, updated_at)
       OUTPUT INSERTED.*
       VALUES
         (@requester_user_id, @provider_user_id, @company_id, @status, @price_agreed, @resume_link,
-         @job_id, @job_title, @phone_number, @referral_summary, SYSUTCDATETIME(), SYSUTCDATETIME())
+         @job_id, @job_title, @phone_number, @referral_summary, 'UNPAID', SYSUTCDATETIME(), SYSUTCDATETIME())
     `);
 
   const newRequest = insertResult.recordset[0];
@@ -851,6 +874,7 @@ app.get('/referrals/requested', requireAuth, async (req, res) => {
     resume_link: row.resume_link || '',
     referral_summary: row.referral_summary || '',
     status: row.status,
+    payment_status: row.payment_status || 'UNPAID',
     price_agreed: row.price_agreed,
     created_at: row.created_at,
     updated_at: row.updated_at,
@@ -1018,6 +1042,112 @@ app.get('/providers/:providerId/reviews', async (req, res) => {
       ORDER BY created_at DESC
     `);
   return res.json({ reviews: result.recordset });
+});
+
+// ---- Payment APIs ----
+// Create Razorpay order
+app.post('/api/payments/create-order', requireAuth, async (req, res) => {
+  const requesterUserId = parseBigIntParam(req.auth.sub);
+  if (!requesterUserId) return res.status(401).json({ error: 'Unauthorized' });
+
+  const { referral_request_id } = req.body || {};
+  const referralRequestId = parseBigIntParam(referral_request_id);
+  if (!referralRequestId) {
+    return res.status(400).json({ error: 'referral_request_id is required' });
+  }
+
+  try {
+    const order = await createPaymentOrder(referralRequestId, requesterUserId);
+    return res.json(order);
+  } catch (error) {
+    console.error('Error creating payment order:', error);
+    const status = error.statusCode || 500;
+    return res.status(status).json({ error: error.message || 'Failed to create payment order' });
+  }
+});
+
+// Verify payment
+app.post('/api/payments/verify', requireAuth, async (req, res) => {
+  const requesterUserId = parseBigIntParam(req.auth.sub);
+  if (!requesterUserId) return res.status(401).json({ error: 'Unauthorized' });
+
+  const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body || {};
+
+  if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
+    return res.status(400).json({ error: 'Missing payment verification data' });
+  }
+
+  try {
+    const result = await verifyPayment(razorpay_order_id, razorpay_payment_id, razorpay_signature);
+    return res.json(result);
+  } catch (error) {
+    console.error('Error verifying payment:', error);
+    const status = error.statusCode || 500;
+    return res.status(status).json({ error: error.message || 'Payment verification failed' });
+  }
+});
+
+// Refund payment
+app.post('/api/payments/refund', requireAuth, async (req, res) => {
+  const requesterUserId = parseBigIntParam(req.auth.sub);
+  if (!requesterUserId) return res.status(401).json({ error: 'Unauthorized' });
+
+  const { referral_request_id } = req.body || {};
+  const referralRequestId = parseBigIntParam(referral_request_id);
+  if (!referralRequestId) {
+    return res.status(400).json({ error: 'referral_request_id is required' });
+  }
+
+  try {
+    const result = await refundPayment(referralRequestId, requesterUserId);
+    return res.json(result);
+  } catch (error) {
+    console.error('Error processing refund:', error);
+    const status = error.statusCode || 500;
+    return res.status(status).json({ error: error.message || 'Refund failed' });
+  }
+});
+
+// Razorpay webhook (no auth required, uses signature verification)
+// Need to use raw body for signature verification
+app.post('/api/razorpay/webhook', (req, res, next) => {
+  // Store raw body for signature verification
+  let rawBody = '';
+  req.setEncoding('utf8');
+  req.on('data', (chunk) => {
+    rawBody += chunk;
+  });
+  req.on('end', () => {
+    req.rawBody = rawBody;
+    try {
+      req.body = JSON.parse(rawBody);
+      next();
+    } catch (e) {
+      return res.status(400).json({ error: 'Invalid JSON' });
+    }
+  });
+}, async (req, res) => {
+  const signature = req.headers['x-razorpay-signature'];
+  if (!signature) {
+    return res.status(400).json({ error: 'Missing signature' });
+  }
+
+  // Verify webhook signature using raw body
+  if (!verifyWebhookSignature(req.rawBody, signature)) {
+    console.error('Invalid webhook signature');
+    return res.status(400).json({ error: 'Invalid signature' });
+  }
+
+  const event = req.body.event;
+  const payload = req.body.payload;
+
+  try {
+    await handleWebhookEvent(event, payload);
+    return res.json({ received: true });
+  } catch (error) {
+    console.error('Error handling webhook:', error);
+    return res.status(500).json({ error: 'Webhook processing failed' });
+  }
 });
 
 // Health check

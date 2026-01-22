@@ -51,5 +51,25 @@ export const api = {
   providersByCompany: (companyId) => request(`/companies/${companyId}/providers`, { auth: false }),
   createReferral: (payload) => request('/referrals', { method: 'POST', body: payload }),
   requestedReferrals: () => request('/referrals/requested'),
+  // Payment APIs
+  createPaymentOrder: (referralRequestId) =>
+    request('/api/payments/create-order', {
+      method: 'POST',
+      body: { referral_request_id: referralRequestId },
+    }),
+  verifyPayment: (orderId, paymentId, signature) =>
+    request('/api/payments/verify', {
+      method: 'POST',
+      body: {
+        razorpay_order_id: orderId,
+        razorpay_payment_id: paymentId,
+        razorpay_signature: signature,
+      },
+    }),
+  refundPayment: (referralRequestId) =>
+    request('/api/payments/refund', {
+      method: 'POST',
+      body: { referral_request_id: referralRequestId },
+    }),
 };
 

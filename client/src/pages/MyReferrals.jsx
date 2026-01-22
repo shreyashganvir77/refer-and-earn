@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../services/api';
+import { useAuth } from '../context/AuthContext';
 import LoadingSpinner from '../components/LoadingSpinner';
 
 const statusBadge = (status) => {
@@ -19,12 +20,30 @@ const statusBadge = (status) => {
   }
 };
 
+const paymentStatusBadge = (status) => {
+  const base = 'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium';
+  switch (status?.toUpperCase()) {
+    case 'PAID':
+      return `${base} bg-green-100 text-green-800`;
+    case 'UNPAID':
+      return `${base} bg-yellow-100 text-yellow-800`;
+    case 'RELEASED':
+      return `${base} bg-blue-100 text-blue-800`;
+    case 'REFUNDED':
+      return `${base} bg-gray-100 text-gray-800`;
+    default:
+      return `${base} bg-gray-100 text-gray-800`;
+  }
+};
+
 const MyReferrals = () => {
   const navigate = useNavigate();
-  //const { user } = useAuth();
+  const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [referrals, setReferrals] = useState([]);
   const [error, setError] = useState(null);
+  const [processingPayment, setProcessingPayment] = useState(null);
+  const [processingRefund, setProcessingRefund] = useState(null);
 
   useEffect(() => {
     let mounted = true;
@@ -47,6 +66,78 @@ const MyReferrals = () => {
       mounted = false;
     };
   }, []);
+
+  const handlePayNow = async (referralId) => {
+    setProcessingPayment(referralId);
+    try {
+      const orderData = await api.createPaymentOrder(referralId);
+      
+      const options = {
+        key: orderData.key || process.env.REACT_APP_RAZORPAY_KEY,
+        amount: orderData.amount,
+        currency: orderData.currency || 'INR',
+        order_id: orderData.orderId,
+        name: 'Refer & Earn',
+        description: `Payment for referral request #${referralId}`,
+        handler: async (response) => {
+          try {
+            await api.verifyPayment(
+              response.razorpay_order_id,
+              response.razorpay_payment_id,
+              response.razorpay_signature
+            );
+            alert('Payment successful!');
+            // Reload referrals
+            const data = await api.requestedReferrals();
+            setReferrals(data.referrals || []);
+          } catch (error) {
+            const errorMsg = error.data?.error || error.message || 'Payment verification failed';
+            alert(`Payment verification failed: ${errorMsg}`);
+          } finally {
+            setProcessingPayment(null);
+          }
+        },
+        prefill: {
+          name: user?.full_name || '',
+          email: user?.email || '',
+        },
+        theme: {
+          color: '#4F46E5',
+        },
+      };
+
+      const razorpay = new window.Razorpay(options);
+      razorpay.on('payment.failed', (response) => {
+        alert(`Payment failed: ${response.error.description || 'Unknown error'}`);
+        setProcessingPayment(null);
+      });
+      razorpay.open();
+    } catch (error) {
+      const errorMsg = error.data?.error || error.message || 'Failed to initialize payment';
+      alert(`Payment failed: ${errorMsg}`);
+      setProcessingPayment(null);
+    }
+  };
+
+  const handleRefund = async (referralId) => {
+    if (!window.confirm('Are you sure you want to request a refund? This action cannot be undone.')) {
+      return;
+    }
+
+    setProcessingRefund(referralId);
+    try {
+      await api.refundPayment(referralId);
+      alert('Refund request processed successfully!');
+      // Reload referrals
+      const data = await api.requestedReferrals();
+      setReferrals(data.referrals || []);
+    } catch (error) {
+      const errorMsg = error.data?.error || error.message || 'Refund failed';
+      alert(`Refund failed: ${errorMsg}`);
+    } finally {
+      setProcessingRefund(null);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-purple-100">
@@ -110,6 +201,11 @@ const MyReferrals = () => {
                                statusUpper === 'ACCEPTED' ? 'Accepted' : 
                                statusUpper === 'REJECTED' ? 'Rejected' : statusUpper}
                             </span>
+                            {ref.payment_status && (
+                              <span className={paymentStatusBadge(ref.payment_status)}>
+                                Payment: {ref.payment_status}
+                              </span>
+                            )}
                             <span className="text-xs text-gray-500">
                               Requested on {new Date(ref.created_at).toLocaleDateString()}
                             </span>
@@ -168,7 +264,25 @@ const MyReferrals = () => {
                           )}
                         </div>
 
-                        <div className="flex items-center gap-3">
+                        <div className="flex flex-col items-end gap-3">
+                          {ref.payment_status === 'UNPAID' && (
+                            <button
+                              onClick={() => handlePayNow(ref.id)}
+                              disabled={processingPayment === ref.id}
+                              className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                            >
+                              {processingPayment === ref.id ? 'Processing...' : 'Pay Now'}
+                            </button>
+                          )}
+                          {ref.payment_status === 'PAID' && statusUpper !== 'ACCEPTED' && statusUpper !== 'COMPLETED' && (
+                            <button
+                              onClick={() => handleRefund(ref.id)}
+                              disabled={processingRefund === ref.id}
+                              className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                            >
+                              {processingRefund === ref.id ? 'Processing...' : 'Request Refund'}
+                            </button>
+                          )}
                           {isCompleted ? (
                             <div className="text-right">
                               <span className="text-sm text-green-700 font-medium block mb-2">✓ Completed</span>
