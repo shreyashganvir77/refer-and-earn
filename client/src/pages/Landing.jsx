@@ -6,23 +6,40 @@ const Landing = () => {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
 
+  const displayName = user?.full_name || user?.name || 'User';
+  const avatarUrl = user?.picture
+    ? user.picture
+    : `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=4F46E5&color=fff`;
+
+  console.log("avatarUrl:", avatarUrl);
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-purple-100">
       {/* Navigation Bar */}
       <nav className="bg-white shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
-            <h1 className="text-xl font-bold text-indigo-600">Refer & Earn</h1>
+            <h1 className="text-xl font-bold text-indigo-600 cursor-pointer" onClick={() => navigate('/')}>
+              Refer & Earn
+            </h1>
             <div className="flex items-center gap-4">
               {user && (
-                <div className="flex items-center gap-3">
-                  <img
-                    src={user.picture || '/default-avatar.png'}
-                    alt={user.name}
-                    className="w-8 h-8 rounded-full"
-                  />
-                  <span className="text-sm font-medium text-gray-700">{user.name}</span>
-                </div>
+                <>
+                  <button
+                    onClick={() => navigate('/my-referrals')}
+                    className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-indigo-700 hover:bg-indigo-50 rounded-lg transition-colors"
+                  >
+                    My Referrals
+                  </button>
+                  <div className="flex items-center gap-3">
+                    <img
+                      src={avatarUrl}
+                      alt={displayName}
+                      className="w-8 h-8 rounded-full"
+                    />
+                    <span className="text-sm font-medium text-gray-700">{displayName}</span>
+                  </div>
+                </>
               )}
               <button
                 onClick={() => {
@@ -39,8 +56,8 @@ const Landing = () => {
       </nav>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-        <div className="text-center mb-12">
-          <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
+        <div className="text-center mb-12 space-y-3">
+          <h1 className="text-4xl md:text-5xl font-bold text-gray-900">
             Refer & Earn Platform
           </h1>
           <p className="text-xl text-gray-600">
