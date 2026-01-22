@@ -141,7 +141,8 @@ const WantReferral = () => {
     if (!providerUserId) return;
 
     try {
-      await api.createReferral({
+      // Create referral request
+      const referralResponse = await api.createReferral({
         provider_user_id: providerUserId,
         price_agreed: price ?? 0,
         job_id: formData.job_id.trim(),
@@ -150,7 +151,13 @@ const WantReferral = () => {
         phone_number: formData.phone_number.trim(),
         referral_summary: formData.referral_summary.trim(),
       });
-      alert('Referral request created successfully! You will receive a confirmation email shortly.');
+
+      const referralRequestId = referralResponse.referral_request?.request_id;
+      if (!referralRequestId) {
+        throw new Error('Failed to get referral request ID');
+      }
+
+      // Close modal first
       setShowResumeModal(false);
       setFormData({
         job_id: '',
@@ -161,6 +168,57 @@ const WantReferral = () => {
       });
       setFormErrors({});
       setSelectedProvider(null);
+
+      // Create payment order and open Razorpay checkout
+      try {
+        const orderData = await api.createPaymentOrder(referralRequestId);
+        
+        const options = {
+          key: orderData.key || process.env.REACT_APP_RAZORPAY_KEY,
+          amount: orderData.amount,
+          currency: orderData.currency || 'INR',
+          order_id: orderData.orderId,
+          name: 'Refer & Earn',
+          description: `Payment for referral request #${referralRequestId}`,
+          handler: async (response) => {
+            try {
+              await api.verifyPayment(
+                response.razorpay_order_id,
+                response.razorpay_payment_id,
+                response.razorpay_signature
+              );
+              alert('Payment successful! Your referral request is now active.');
+              navigate('/my-referrals');
+            } catch (error) {
+              const errorMsg = error.data?.error || error.message || 'Payment verification failed';
+              alert(`Payment verification failed: ${errorMsg}`);
+            }
+          },
+          prefill: {
+            name: user?.full_name || '',
+            email: user?.email || '',
+          },
+          theme: {
+            color: '#4F46E5',
+          },
+          modal: {
+            ondismiss: () => {
+              // User closed the payment modal
+              // Referral is created but unpaid - they can pay later from My Referrals
+            },
+          },
+        };
+
+        const razorpay = new window.Razorpay(options);
+        razorpay.on('payment.failed', (response) => {
+          alert(`Payment failed: ${response.error.description || 'Unknown error'}`);
+        });
+        razorpay.open();
+      } catch (paymentError) {
+        const errorMsg = paymentError.data?.error || paymentError.message || 'Failed to initialize payment';
+        alert(`Referral created but payment failed: ${errorMsg}. You can pay later from My Referrals.`);
+        navigate('/my-referrals');
+      }
     } catch (e) {
       const errorMsg = e.data?.error || e.message || 'Failed to create referral request';
       alert(errorMsg);
