@@ -22,7 +22,7 @@ const statusBadge = (status) => {
 
 const MyReferrals = () => {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  //const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [referrals, setReferrals] = useState([]);
   const [error, setError] = useState(null);
