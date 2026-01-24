@@ -1,75 +1,38 @@
-const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || '';
+// Backward-compatible barrel (old imports still work).
+// Prefer importing the specific service: authService, userService, companiesService, referralsService, paymentsService.
 
-function getToken() {
-  return localStorage.getItem('token');
-}
-
-async function request(path, { method = 'GET', body, auth = true } = {}) {
-  const headers = { 'Content-Type': 'application/json' };
-  if (auth) {
-    const token = getToken();
-    if (token) headers.Authorization = `Bearer ${token}`;
-  }
-
-  const res = await fetch(`${API_BASE_URL}${path}`, {
-    method,
-    headers,
-    body: body ? JSON.stringify(body) : undefined,
-  });
-
-  const text = await res.text();
-  const data = text ? JSON.parse(text) : null;
-
-  if (!res.ok) {
-    const msg = data?.error || `Request failed (${res.status})`;
-    const err = new Error(msg);
-    err.status = res.status;
-    err.data = data;
-    throw err;
-  }
-
-  return data;
-}
+import { authService } from './authService';
+import { userService } from './userService';
+import { companiesService } from './companiesService';
+import { referralsService } from './referralsService';
+import { paymentsService } from './paymentsService';
 
 export const api = {
-  authGoogle: (idToken) => request('/auth/google', { method: 'POST', body: { idToken }, auth: false }),
-  me: () => request('/auth/me'),
-  patchMe: (payload) => request('/users/me', { method: 'PATCH', body: payload }),
-  startReferralOtp: (companyEmail) =>
-    request('/users/me/otp/start', {
-      method: 'POST',
-      body: { company_official_email: companyEmail },
-    }),
-  verifyReferralOtp: (code) =>
-    request('/users/me/otp/verify', {
-      method: 'POST',
-      body: { code },
-    }),
-  providerReferrals: () => request('/api/provider/referrals'),
-  completeReferral: (id) => request(`/api/referrals/${id}/complete`, { method: 'POST' }),
-  companies: () => request('/companies', { auth: false }),
-  providersByCompany: (companyId) => request(`/companies/${companyId}/providers`, { auth: false }),
-  createReferral: (payload) => request('/referrals', { method: 'POST', body: payload }),
-  requestedReferrals: () => request('/referrals/requested'),
-  // Payment APIs
-  createPaymentOrder: (referralRequestId) =>
-    request('/api/payments/create-order', {
-      method: 'POST',
-      body: { referral_request_id: referralRequestId },
-    }),
+  // Auth
+  authGoogle: authService.googleLogin,
+  me: authService.me,
+
+  // User/profile
+  patchMe: userService.patchMe,
+  startReferralOtp: userService.startReferralOtp,
+  verifyReferralOtp: userService.verifyReferralOtp,
+
+  // Companies/providers
+  companies: companiesService.list,
+  companiesSearch: companiesService.search,
+  companyDomains: companiesService.getDomains,
+  providersByCompany: companiesService.providersByCompany,
+
+  // Referrals
+  createReferral: referralsService.create,
+  requestedReferrals: referralsService.requested,
+  providerReferrals: referralsService.providerReferrals,
+  completeReferral: referralsService.complete,
+
+  // Payments
+  createPaymentOrder: paymentsService.createOrder,
   verifyPayment: (orderId, paymentId, signature) =>
-    request('/api/payments/verify', {
-      method: 'POST',
-      body: {
-        razorpay_order_id: orderId,
-        razorpay_payment_id: paymentId,
-        razorpay_signature: signature,
-      },
-    }),
-  refundPayment: (referralRequestId) =>
-    request('/api/payments/refund', {
-      method: 'POST',
-      body: { referral_request_id: referralRequestId },
-    }),
+    paymentsService.verify({ orderId, paymentId, signature }),
+  refundPayment: paymentsService.refund,
 };
 

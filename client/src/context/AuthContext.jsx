@@ -5,14 +5,14 @@ const AuthContext = createContext(null);
 
 function isProfileComplete(user) {
   if (!user) return false;
-  // Minimal completion rules per spec (can be expanded later)
   const hasCompany = user.company_id !== null && user.company_id !== undefined;
   const hasRole = Boolean(user.role_designation);
   const hasExperience = user.years_experience !== null && user.years_experience !== undefined;
 
   if (user.is_referral_provider) {
     const hasPrice = user.price_per_referral !== null && user.price_per_referral !== undefined;
-    return hasCompany && hasRole && hasExperience && hasPrice;
+    const hasVerifiedCompanyEmail = Boolean(user.is_company_email_verified);
+    return hasCompany && hasRole && hasExperience && hasPrice && hasVerifiedCompanyEmail;
   }
 
   return hasCompany && hasRole && hasExperience;
