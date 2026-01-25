@@ -30,6 +30,10 @@ PORT=8000
 GOOGLE_CLIENT_ID=your-google-client-id-here
 GOOGLE_CLIENT_SECRET=your-google-client-secret-here
 JWT_SECRET=your-super-secret-jwt-key-change-in-production
+
+# Admin (for /admin support-tickets; optional)
+ADMIN_USERNAME=admin
+ADMIN_PASSWORD=your-secure-admin-password
 ```
 
 4. Set up Google OAuth:

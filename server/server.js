@@ -2,7 +2,7 @@ const express = require('express');
 const cors = require('cors');
 require('dotenv').config();
 
-const { requireAuth } = require('./src/auth');
+const { requireAuth, requireAdmin, signSessionJwt } = require('./src/auth');
 const { parseBigIntParam } = require('./src/utils');
 const {
   handleGoogleAuth,
@@ -28,8 +28,10 @@ const {
 } = require('./src/referralsService');
 const {
   createReview,
+  createReviewForReferral,
   getProviderReviews,
 } = require('./src/reviewsService');
+const { createSupportTicket, listAllSupportTickets } = require('./src/supportTicketsService');
 const {
   createPaymentOrder,
   verifyPayment,
@@ -310,6 +312,72 @@ app.post('/providers/:providerId/reviews', requireAuth, async (req, res) => {
                    error.message.includes('allowed only') ? 403 :
                    error.message.includes('Cannot review') ? 400 : 500;
     return res.status(status).json({ error: error.message || 'Failed to create review' });
+  }
+});
+
+app.post('/api/provider-reviews', requireAuth, async (req, res) => {
+  try {
+    const requesterUserId = parseBigIntParam(req.auth.sub);
+    if (!requesterUserId) return res.status(401).json({ error: 'Unauthorized' });
+
+    const { referral_request_id, stars, review_text } = req.body || {};
+    const referralRequestId = parseBigIntParam(referral_request_id);
+    if (!referralRequestId) return res.status(400).json({ error: 'referral_request_id is required' });
+
+    const result = await createReviewForReferral(referralRequestId, requesterUserId, { stars, review_text });
+    return res.status(201).json(result);
+  } catch (error) {
+    if (error.errorCode === 'REFERRAL_NOT_COMPLETED' || error.errorCode === 'REVIEW_ALREADY_EXISTS') {
+      return res.status(400).json({ errorCode: error.errorCode });
+    }
+    return res.status(400).json({ error: error.message || 'Failed to submit review' });
+  }
+});
+
+app.post('/api/support-tickets', requireAuth, async (req, res) => {
+  try {
+    const raisedByUserId = parseBigIntParam(req.auth.sub);
+    if (!raisedByUserId) return res.status(401).json({ error: 'Unauthorized' });
+
+    const { referral_request_id, issue_type, description } = req.body || {};
+    const referralRequestId = parseBigIntParam(referral_request_id);
+    if (!referralRequestId) return res.status(400).json({ error: 'referral_request_id is required' });
+
+    const result = await createSupportTicket(referralRequestId, raisedByUserId, { issue_type, description });
+    return res.status(201).json(result);
+  } catch (error) {
+    if (error.errorCode === 'REFERRAL_NOT_COMPLETED' || error.errorCode === 'SUPPORT_TICKET_ALREADY_EXISTS') {
+      return res.status(400).json({ errorCode: error.errorCode });
+    }
+    return res.status(400).json({ error: error.message || 'Failed to create support ticket' });
+  }
+});
+
+// ---- Admin APIs (username + password via env: ADMIN_USERNAME, ADMIN_PASSWORD) ----
+app.post('/api/admin/login', (req, res) => {
+  try {
+    const { username, password } = req.body || {};
+    const adminUser = process.env.ADMIN_USERNAME;
+    const adminPass = process.env.ADMIN_PASSWORD;
+    if (!adminUser || !adminPass) {
+      return res.status(503).json({ error: 'Admin login not configured' });
+    }
+    if (String(username) !== String(adminUser) || String(password) !== String(adminPass)) {
+      return res.status(401).json({ error: 'Invalid username or password' });
+    }
+    const token = signSessionJwt({ sub: 'admin', role: 'admin' });
+    return res.json({ token });
+  } catch (e) {
+    return res.status(500).json({ error: e.message || 'Login failed' });
+  }
+});
+
+app.get('/api/admin/support-tickets', requireAdmin, async (req, res) => {
+  try {
+    const result = await listAllSupportTickets();
+    return res.json(result);
+  } catch (error) {
+    return res.status(500).json({ error: error.message || 'Failed to load support tickets' });
   }
 });
 

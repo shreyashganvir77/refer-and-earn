@@ -27,6 +27,9 @@ export async function request(path, { method = 'GET', body, auth = true } = {}) 
     else if (errorCode === 'INVALID_COMPANY_DOMAIN') msg = 'Please use your official company email for the selected company';
     else if (errorCode === 'INVALID_EMAIL') msg = 'Please enter a valid company email address';
     else if (errorCode === 'COMPANY_EMAIL_NOT_VERIFIED') msg = 'Company email must be verified before enabling referral provider';
+    else if (errorCode === 'REFERRAL_NOT_COMPLETED') msg = 'Referral must be completed first';
+    else if (errorCode === 'REVIEW_ALREADY_EXISTS') msg = 'You have already submitted a review for this provider';
+    else if (errorCode === 'SUPPORT_TICKET_ALREADY_EXISTS') msg = 'A support ticket already exists for this referral';
     const err = new Error(msg);
     err.status = res.status;
     err.data = data;

@@ -1,6 +1,7 @@
 const Razorpay = require('razorpay');
 const crypto = require('crypto');
 const { getPool, sql } = require('./db');
+const { hasOpenTicketForReferral } = require('./supportTicketsService');
 
 // Initialize Razorpay client
 const razorpay = new Razorpay({
@@ -257,9 +258,15 @@ async function verifyPayment(orderId, paymentId, signature) {
 }
 
 /**
- * Release payment to provider (called when referral is completed)
+ * Release payment to provider (called when referral is completed).
+ * Blocks release if an OPEN support ticket exists for this referral.
  */
 async function releasePaymentToProvider(referralRequestId, providerUserId) {
+  const open = await hasOpenTicketForReferral(referralRequestId);
+  if (open) {
+    return { success: false, blocked: true, reason: 'OPEN_SUPPORT_TICKET' };
+  }
+
   const pool = await getPool();
 
   // Fetch payment record

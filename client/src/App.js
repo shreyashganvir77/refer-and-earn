@@ -9,6 +9,8 @@ import ProfileCompletion from './pages/ProfileCompletion';
 import { useAuth } from './context/AuthContext';
 import ProviderReferrals from './pages/ProviderReferrals';
 import MyReferrals from './pages/MyReferrals';
+import AdminLogin from './pages/AdminLogin';
+import AdminSupportTickets from './pages/AdminSupportTickets';
 
 function App() {
   const { isAuthenticated, loading, isProfileComplete } = useAuth();
@@ -67,6 +69,8 @@ function App() {
             isAuthenticated ? <MyReferrals /> : <Navigate to="/login" replace />
           }
         />
+        <Route path="/admin/login" element={<AdminLogin />} />
+        <Route path="/admin" element={<AdminSupportTickets />} />
       </Routes>
     </Router>
   );
