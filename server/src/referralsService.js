@@ -168,7 +168,8 @@ async function createReferralRequest(requesterUserId, {
 }
 
 /**
- * Get referral requests by requester
+ * Get referral requests by requester.
+ * Includes has_review (requester already reviewed this provider) and support_ticket_status (OPEN/RESOLVED/null).
  */
 async function getRequestedReferrals(requesterUserId) {
   const pool = await getPool();
@@ -180,16 +181,23 @@ async function getRequestedReferrals(requesterUserId) {
         c.company_name,
         c.logo_url,
         pu.full_name AS provider_name,
-        pu.email AS provider_email
+        pu.email AS provider_email,
+        CASE WHEN pr.rating_id IS NOT NULL THEN 1 ELSE 0 END AS has_review,
+        st.status AS support_ticket_status
       FROM referral_requests rr
       LEFT JOIN companies c ON rr.company_id = c.company_id
       LEFT JOIN users pu ON rr.provider_user_id = pu.user_id
+      LEFT JOIN provider_reviews pr
+        ON pr.provider_user_id = rr.provider_user_id
+       AND pr.given_by_user_id = rr.requester_user_id
+      LEFT JOIN support_tickets st ON st.referral_request_id = rr.request_id
       WHERE rr.requester_user_id = @requester_user_id
       ORDER BY rr.created_at DESC
     `);
   
   const referrals = result.recordset.map((row) => ({
     id: String(row.request_id),
+    provider_user_id: row.provider_user_id != null ? String(row.provider_user_id) : null,
     provider_name: row.provider_name || 'Unknown',
     provider_email: row.provider_email || '',
     company_name: row.company_name || '',
@@ -205,6 +213,8 @@ async function getRequestedReferrals(requesterUserId) {
     created_at: row.created_at,
     updated_at: row.updated_at,
     completed_at: row.status === 'COMPLETED' ? row.updated_at : null,
+    has_review: Boolean(row.has_review),
+    support_ticket_status: row.support_ticket_status || null,
   }));
   
   return { referrals };

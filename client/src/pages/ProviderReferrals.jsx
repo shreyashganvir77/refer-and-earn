@@ -2,22 +2,35 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../services/api';
 import { useAuth } from '../context/AuthContext';
+import ReferralRequestRow from '../components/ReferralRequestRow';
 
-const statusBadge = (status) => {
-  const base = 'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium';
-  switch (status?.toUpperCase()) {
-    case 'COMPLETED':
-      return `${base} bg-green-100 text-green-800`;
-    case 'PENDING':
-      return `${base} bg-yellow-100 text-yellow-800`;
-    case 'ACCEPTED':
-      return `${base} bg-blue-100 text-blue-800`;
-    case 'REJECTED':
-      return `${base} bg-red-100 text-red-800`;
-    default:
-      return `${base} bg-gray-100 text-gray-800`;
-  }
-};
+const SKELETON_COUNT = 5;
+
+function SkeletonCard() {
+  return (
+    <div
+      className="border border-gray-200 rounded-lg bg-white p-4 shadow-sm"
+      aria-hidden
+    >
+      <div className="flex justify-between gap-2 mb-3">
+        <div className="h-4 w-32 bg-gray-200 rounded animate-pulse" />
+        <div className="flex gap-2">
+          <div className="h-5 w-16 bg-gray-200 rounded animate-pulse" />
+          <div className="h-4 w-20 bg-gray-200 rounded animate-pulse" />
+        </div>
+      </div>
+      <div className="flex gap-2 mb-3">
+        <div className="h-4 w-40 bg-gray-200 rounded animate-pulse" />
+        <div className="h-4 w-24 bg-gray-200 rounded animate-pulse" />
+        <div className="h-4 w-16 bg-gray-200 rounded animate-pulse" />
+      </div>
+      <div className="flex justify-between pt-3 border-t border-gray-100">
+        <div className="h-4 w-20 bg-gray-200 rounded animate-pulse" />
+        <div className="h-8 w-28 bg-gray-200 rounded animate-pulse" />
+      </div>
+    </div>
+  );
+}
 
 const ProviderReferrals = () => {
   const navigate = useNavigate();
@@ -27,6 +40,7 @@ const ProviderReferrals = () => {
   const [error, setError] = useState(null);
   const [completingId, setCompletingId] = useState(null);
   const [confirmId, setConfirmId] = useState(null);
+  const [expandedRequestId, setExpandedRequestId] = useState(null);
 
   const fetchReferrals = useMemo(
     () => async () => {
@@ -96,7 +110,6 @@ const ProviderReferrals = () => {
                 Manage incoming referrals. Mark as completed once you’ve provided the referral.
               </p>
             </div>
-            {loading && <span className="text-sm text-gray-500">Loading…</span>}
           </div>
 
           {error && (
@@ -106,120 +119,33 @@ const ProviderReferrals = () => {
           )}
 
           {!loading && referrals.length === 0 && (
-            <div className="text-center py-10 text-gray-600">No referral requests yet.</div>
+            <div className="text-center py-10 text-gray-600">No referral requests available.</div>
           )}
 
-          <div className="grid gap-4">
-            {referrals.map((ref) => {
-              const isPending = ref.status?.toUpperCase() === 'PENDING';
-              const statusUpper = ref.status?.toUpperCase() || 'PENDING';
-              return (
-                <div key={ref.id} className="border border-gray-200 rounded-lg p-6">
-                  <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
-                    <div className="flex-1 space-y-3">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className={statusBadge(ref.status)}>
-                          {statusUpper === 'COMPLETED' ? 'Completed' : 
-                           statusUpper === 'PENDING' ? 'Pending' : 
-                           statusUpper === 'ACCEPTED' ? 'Accepted' : 
-                           statusUpper === 'REJECTED' ? 'Rejected' : statusUpper}
-                        </span>
-                        <span className="text-xs text-gray-500">
-                          Requested on {new Date(ref.created_at).toLocaleDateString()}
-                        </span>
-                      </div>
+          {loading && (
+            <div className="grid gap-4" role="status" aria-label="Loading">
+              {Array.from({ length: SKELETON_COUNT }).map((_, i) => (
+                <SkeletonCard key={i} />
+              ))}
+            </div>
+          )}
 
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
-                        <div>
-                          <strong className="text-gray-700">Requester:</strong>{' '}
-                          <span className="text-gray-900">{ref.requester_name}</span>
-                        </div>
-                        {ref.requester_email && (
-                          <div>
-                            <strong className="text-gray-700">Email:</strong>{' '}
-                            <a href={`mailto:${ref.requester_email}`} className="text-indigo-600 hover:underline">
-                              {ref.requester_email}
-                            </a>
-                          </div>
-                        )}
-                        {ref.phone_number && (
-                          <div>
-                            <strong className="text-gray-700">Phone:</strong>{' '}
-                            <span className="text-gray-900">{ref.phone_number}</span>
-                          </div>
-                        )}
-                        <div>
-                          <strong className="text-gray-700">Company:</strong>{' '}
-                          <span className="text-gray-900">{ref.company_name || 'N/A'}</span>
-                        </div>
-                        {ref.job_id && (
-                          <div>
-                            <strong className="text-gray-700">Job ID:</strong>{' '}
-                            <span className="text-gray-900">{ref.job_id}</span>
-                          </div>
-                        )}
-                        {ref.job_title && (
-                          <div>
-                            <strong className="text-gray-700">Job Title:</strong>{' '}
-                            <span className="text-gray-900">{ref.job_title}</span>
-                          </div>
-                        )}
-                        {ref.requester_role && (
-                          <div>
-                            <strong className="text-gray-700">Requester Role:</strong>{' '}
-                            <span className="text-gray-900">{ref.requester_role}</span>
-                          </div>
-                        )}
-                      </div>
-
-                      {ref.resume_link && (
-                        <div className="text-sm">
-                          <strong className="text-gray-700">Resume:</strong>{' '}
-                          <a
-                            href={ref.resume_link}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-indigo-600 hover:text-indigo-700 underline"
-                          >
-                            View Resume →
-                          </a>
-                        </div>
-                      )}
-
-                      {ref.referral_summary && (
-                        <div className="mt-3 p-3 bg-gray-50 rounded-lg">
-                          <strong className="text-gray-700 text-sm block mb-2">Referral Summary:</strong>
-                          <p className="text-sm text-gray-800 whitespace-pre-wrap leading-relaxed">
-                            {ref.referral_summary}
-                          </p>
-                        </div>
-                      )}
-
-                      {ref.completed_at && (
-                        <div className="text-xs text-gray-500">
-                          Completed on {new Date(ref.completed_at).toLocaleString()}
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="flex items-center lg:flex-col lg:items-end gap-3">
-                      {isPending ? (
-                        <button
-                          onClick={() => setConfirmId(ref.id)}
-                          className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors text-sm font-medium disabled:opacity-60 whitespace-nowrap"
-                          disabled={completingId === ref.id}
-                        >
-                          {completingId === ref.id ? 'Updating…' : 'Mark as Completed'}
-                        </button>
-                      ) : statusUpper === 'COMPLETED' ? (
-                        <span className="text-sm text-green-700 font-medium">✓ Completed</span>
-                      ) : null}
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+          {!loading && referrals.length > 0 && (
+            <div className="grid gap-4" role="list">
+              {referrals.map((ref) => (
+                <ReferralRequestRow
+                  key={ref.id}
+                  request={ref}
+                  isExpanded={expandedRequestId === ref.id}
+                  onToggleExpand={() =>
+                    setExpandedRequestId((prev) => (prev === ref.id ? null : ref.id))
+                  }
+                  onMarkCompleteClick={() => setConfirmId(ref.id)}
+                  isCompleting={completingId === ref.id}
+                />
+              ))}
+            </div>
+          )}
         </div>
       </main>
 

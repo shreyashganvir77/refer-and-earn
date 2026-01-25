@@ -2,39 +2,34 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../services/api';
 import { useAuth } from '../context/AuthContext';
-import LoadingSpinner from '../components/LoadingSpinner';
+import MyReferralRow from '../components/MyReferralRow';
 
-const statusBadge = (status) => {
-  const base = 'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium';
-  switch (status?.toUpperCase()) {
-    case 'COMPLETED':
-      return `${base} bg-green-100 text-green-800`;
-    case 'PENDING':
-      return `${base} bg-yellow-100 text-yellow-800`;
-    case 'ACCEPTED':
-      return `${base} bg-blue-100 text-blue-800`;
-    case 'REJECTED':
-      return `${base} bg-red-100 text-red-800`;
-    default:
-      return `${base} bg-gray-100 text-gray-800`;
-  }
-};
+const ISSUE_TYPES = ['Referral not provided', 'Poor communication', 'Misleading referral', 'Other'];
+const SKELETON_COUNT = 5;
 
-const paymentStatusBadge = (status) => {
-  const base = 'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium';
-  switch (status?.toUpperCase()) {
-    case 'PAID':
-      return `${base} bg-green-100 text-green-800`;
-    case 'UNPAID':
-      return `${base} bg-yellow-100 text-yellow-800`;
-    case 'RELEASED':
-      return `${base} bg-blue-100 text-blue-800`;
-    case 'REFUNDED':
-      return `${base} bg-gray-100 text-gray-800`;
-    default:
-      return `${base} bg-gray-100 text-gray-800`;
-  }
-};
+function SkeletonCard() {
+  return (
+    <div className="border border-gray-200 rounded-lg bg-white p-4 shadow-sm" aria-hidden>
+      <div className="flex justify-between gap-2 mb-3">
+        <div className="h-4 w-32 bg-gray-200 rounded animate-pulse" />
+        <div className="flex gap-2">
+          <div className="h-5 w-16 bg-gray-200 rounded animate-pulse" />
+          <div className="h-5 w-14 bg-gray-200 rounded animate-pulse" />
+          <div className="h-4 w-20 bg-gray-200 rounded animate-pulse" />
+        </div>
+      </div>
+      <div className="flex gap-2 mb-3">
+        <div className="h-4 w-40 bg-gray-200 rounded animate-pulse" />
+        <div className="h-4 w-24 bg-gray-200 rounded animate-pulse" />
+        <div className="h-4 w-16 bg-gray-200 rounded animate-pulse" />
+      </div>
+      <div className="flex justify-between pt-3 border-t border-gray-100">
+        <div className="h-4 w-20 bg-gray-200 rounded animate-pulse" />
+        <div className="h-8 w-28 bg-gray-200 rounded animate-pulse" />
+      </div>
+    </div>
+  );
+}
 
 const MyReferrals = () => {
   const navigate = useNavigate();
@@ -44,28 +39,105 @@ const MyReferrals = () => {
   const [error, setError] = useState(null);
   const [processingPayment, setProcessingPayment] = useState(null);
   const [processingRefund, setProcessingRefund] = useState(null);
+  const [expandedId, setExpandedId] = useState(null);
+
+  const [reviewModalRef, setReviewModalRef] = useState(null);
+  const [reviewStars, setReviewStars] = useState(0);
+  const [reviewText, setReviewText] = useState('');
+  const [reviewSubmitting, setReviewSubmitting] = useState(false);
+  const [reviewError, setReviewError] = useState(null);
+
+  const [helpModalRef, setHelpModalRef] = useState(null);
+  const [helpIssueType, setHelpIssueType] = useState('');
+  const [helpDescription, setHelpDescription] = useState('');
+  const [helpSubmitting, setHelpSubmitting] = useState(false);
+  const [helpError, setHelpError] = useState(null);
+  const [helpConfirming, setHelpConfirming] = useState(false);
+
+  const loadReferrals = React.useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const data = await api.requestedReferrals();
+      setReferrals(data.referrals || []);
+    } catch (err) {
+      setError(err.message || 'Failed to load referrals');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
-    let mounted = true;
-    async function loadReferrals() {
-      try {
-        setLoading(true);
-        const data = await api.requestedReferrals();
-        if (!mounted) return;
-        setReferrals(data.referrals || []);
-      } catch (err) {
-        if (!mounted) return;
-        setError(err.message || 'Failed to load referrals');
-      } finally {
-        if (!mounted) return;
-        setLoading(false);
-      }
-    }
     loadReferrals();
-    return () => {
-      mounted = false;
-    };
-  }, []);
+  }, [loadReferrals]);
+
+  const handleOpenReviewModal = (ref) => {
+    setReviewModalRef(ref);
+    setReviewStars(0);
+    setReviewText('');
+    setReviewError(null);
+  };
+
+  const handleCloseReviewModal = () => {
+    setReviewModalRef(null);
+    setReviewStars(0);
+    setReviewText('');
+    setReviewError(null);
+  };
+
+  const handleSubmitReview = async () => {
+    if (!reviewModalRef || reviewStars < 1 || reviewStars > 5) return;
+    setReviewSubmitting(true);
+    setReviewError(null);
+    try {
+      await api.submitProviderReview(reviewModalRef.id, { stars: reviewStars, review_text: reviewText || null });
+      handleCloseReviewModal();
+      await loadReferrals();
+    } catch (err) {
+      setReviewError(err.message || 'Failed to submit review');
+    } finally {
+      setReviewSubmitting(false);
+    }
+  };
+
+  const handleOpenHelpModal = (ref) => {
+    setHelpModalRef(ref);
+    setHelpIssueType('');
+    setHelpDescription('');
+    setHelpError(null);
+    setHelpConfirming(false);
+  };
+
+  const handleCloseHelpModal = () => {
+    setHelpModalRef(null);
+    setHelpIssueType('');
+    setHelpDescription('');
+    setHelpError(null);
+    setHelpConfirming(false);
+  };
+
+  const handleHelpConfirm = () => {
+    if (!helpIssueType || !helpDescription.trim()) {
+      setHelpError('Please select an issue type and provide a description.');
+      return;
+    }
+    setHelpConfirming(true);
+  };
+
+  const handleSubmitHelp = async () => {
+    if (!helpModalRef || !helpIssueType || !helpDescription.trim()) return;
+    setHelpSubmitting(true);
+    setHelpError(null);
+    try {
+      await api.createSupportTicket(helpModalRef.id, { issue_type: helpIssueType, description: helpDescription.trim() });
+      handleCloseHelpModal();
+      await loadReferrals();
+    } catch (err) {
+      setHelpError(err.message || 'Failed to submit');
+    } finally {
+      setHelpSubmitting(false);
+    }
+  };
 
   const handlePayNow = async (referralId) => {
     setProcessingPayment(referralId);
@@ -158,18 +230,26 @@ const MyReferrals = () => {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="bg-white rounded-xl shadow-lg p-6">
-          {loading ? (
-            <LoadingSpinner message="Loading your referrals..." />
-          ) : error ? (
-            <div className="rounded-lg bg-red-50 border border-red-200 p-4 text-sm text-red-700">
+          {!loading && error && (
+            <div className="rounded-lg bg-red-50 border border-red-200 p-4 text-sm text-red-700 mb-4">
               {error}
             </div>
-          ) : referrals.length === 0 ? (
+          )}
+
+          {loading && (
+            <div className="grid gap-4" role="status" aria-label="Loading">
+              {Array.from({ length: SKELETON_COUNT }).map((_, i) => (
+                <SkeletonCard key={i} />
+              ))}
+            </div>
+          )}
+
+          {!loading && !error && referrals.length === 0 && (
             <div className="text-center py-12">
               <svg className="w-16 h-16 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
               </svg>
-              <p className="text-gray-600 text-lg mb-4">You haven't requested any referrals yet.</p>
+              <p className="text-gray-600 text-lg mb-4">You have not made any referral requests yet.</p>
               <button
                 onClick={() => navigate('/want-referral')}
                 className="px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium"
@@ -177,7 +257,9 @@ const MyReferrals = () => {
                 Request a Referral
               </button>
             </div>
-          ) : (
+          )}
+
+          {!loading && !error && referrals.length > 0 && (
             <div className="space-y-4">
               <div className="mb-6">
                 <h2 className="text-2xl font-bold text-gray-900">Your Referral Requests</h2>
@@ -186,127 +268,173 @@ const MyReferrals = () => {
                 </p>
               </div>
 
-              <div className="grid gap-4">
-                {referrals.map((ref) => {
-                  const statusUpper = ref.status?.toUpperCase() || 'PENDING';
-                  const isCompleted = statusUpper === 'COMPLETED';
-                  return (
-                    <div key={ref.id} className="border border-gray-200 rounded-lg p-6">
-                      <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
-                        <div className="flex-1 space-y-3">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <span className={statusBadge(ref.status)}>
-                              {statusUpper === 'COMPLETED' ? 'Completed' : 
-                               statusUpper === 'PENDING' ? 'Pending' : 
-                               statusUpper === 'ACCEPTED' ? 'Accepted' : 
-                               statusUpper === 'REJECTED' ? 'Rejected' : statusUpper}
-                            </span>
-                            {ref.payment_status && (
-                              <span className={paymentStatusBadge(ref.payment_status)}>
-                                Payment: {ref.payment_status}
-                              </span>
-                            )}
-                            <span className="text-xs text-gray-500">
-                              Requested on {new Date(ref.created_at).toLocaleDateString()}
-                            </span>
-                          </div>
-
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
-                            <div>
-                              <strong className="text-gray-700">Provider:</strong>{' '}
-                              <span className="text-gray-900">{ref.provider_name}</span>
-                            </div>
-                            {ref.provider_email && (
-                              <div>
-                                <strong className="text-gray-700">Provider Email:</strong>{' '}
-                                <a href={`mailto:${ref.provider_email}`} className="text-indigo-600 hover:underline">
-                                  {ref.provider_email}
-                                </a>
-                              </div>
-                            )}
-                            <div>
-                              <strong className="text-gray-700">Company:</strong>{' '}
-                              <span className="text-gray-900">{ref.company_name || 'N/A'}</span>
-                            </div>
-                            {ref.job_id && (
-                              <div>
-                                <strong className="text-gray-700">Job ID:</strong>{' '}
-                                <span className="text-gray-900">{ref.job_id}</span>
-                              </div>
-                            )}
-                            {ref.job_title && (
-                              <div>
-                                <strong className="text-gray-700">Job Title:</strong>{' '}
-                                <span className="text-gray-900">{ref.job_title}</span>
-                              </div>
-                            )}
-                            {ref.price_agreed && (
-                              <div>
-                                <strong className="text-gray-700">Price Agreed:</strong>{' '}
-                                <span className="text-gray-900">${ref.price_agreed}</span>
-                              </div>
-                            )}
-                          </div>
-
-                          {ref.referral_summary && (
-                            <div className="mt-3 p-3 bg-gray-50 rounded-lg">
-                              <strong className="text-gray-700 text-sm block mb-2">Your Referral Summary:</strong>
-                              <p className="text-sm text-gray-800 whitespace-pre-wrap leading-relaxed">
-                                {ref.referral_summary}
-                              </p>
-                            </div>
-                          )}
-
-                          {ref.completed_at && (
-                            <div className="text-xs text-gray-500">
-                              Completed on {new Date(ref.completed_at).toLocaleString()}
-                            </div>
-                          )}
-                        </div>
-
-                        <div className="flex flex-col items-end gap-3">
-                          {ref.payment_status === 'UNPAID' && (
-                            <button
-                              onClick={() => handlePayNow(ref.id)}
-                              disabled={processingPayment === ref.id}
-                              className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
-                            >
-                              {processingPayment === ref.id ? 'Processing...' : 'Pay Now'}
-                            </button>
-                          )}
-                          {ref.payment_status === 'PAID' && statusUpper !== 'ACCEPTED' && statusUpper !== 'COMPLETED' && (
-                            <button
-                              onClick={() => handleRefund(ref.id)}
-                              disabled={processingRefund === ref.id}
-                              className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
-                            >
-                              {processingRefund === ref.id ? 'Processing...' : 'Request Refund'}
-                            </button>
-                          )}
-                          {isCompleted ? (
-                            <div className="text-right">
-                              <span className="text-sm text-green-700 font-medium block mb-2">✓ Completed</span>
-                              <p className="text-xs text-gray-500">
-                                You can now rate this provider
-                              </p>
-                            </div>
-                          ) : (
-                            <div className="text-right">
-                              <p className="text-xs text-gray-500">
-                                Waiting for provider to complete
-                              </p>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
+              <div className="grid gap-4" role="list">
+                {referrals.map((ref) => (
+                  <MyReferralRow
+                    key={ref.id}
+                    request={ref}
+                    isExpanded={expandedId === ref.id}
+                    onToggleExpand={() => setExpandedId((prev) => (prev === ref.id ? null : ref.id))}
+                    onPayNow={handlePayNow}
+                    onRefund={handleRefund}
+                    onReview={handleOpenReviewModal}
+                    onHelp={handleOpenHelpModal}
+                    isProcessingPayment={processingPayment === ref.id}
+                    isProcessingRefund={processingRefund === ref.id}
+                  />
+                ))}
               </div>
             </div>
           )}
         </div>
       </div>
+
+      {/* Review & Rate modal */}
+      {reviewModalRef && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
+            <h3 className="text-lg font-bold text-gray-900 mb-1">Review & Rate</h3>
+            <p className="text-sm text-gray-600 mb-4">
+              Rate {reviewModalRef.provider_name} for this completed referral.
+            </p>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Rating <span className="text-red-500">*</span>
+                </label>
+                <div className="flex gap-2">
+                  {[1, 2, 3, 4, 5].map((n) => (
+                    <button
+                      key={n}
+                      type="button"
+                      onClick={() => setReviewStars(n)}
+                      className={`w-10 h-10 rounded-lg text-lg transition-colors ${
+                        reviewStars >= n
+                          ? 'bg-indigo-100 text-indigo-700'
+                          : 'bg-gray-100 text-gray-400 hover:bg-gray-200'
+                      }`}
+                    >
+                      ★
+                    </button>
+                  ))}
+                </div>
+                <p className="text-xs text-gray-500 mt-1">1 = Poor, 5 = Excellent</p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Review (optional)</label>
+                <textarea
+                  value={reviewText}
+                  onChange={(e) => setReviewText(e.target.value)}
+                  rows={3}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none resize-y"
+                  placeholder="Share your experience..."
+                />
+              </div>
+            </div>
+            {reviewError && <p className="mt-2 text-sm text-red-600">{reviewError}</p>}
+            <div className="flex justify-end gap-2 mt-6">
+              <button
+                onClick={handleCloseReviewModal}
+                className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 text-sm font-medium"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSubmitReview}
+                disabled={reviewSubmitting || reviewStars < 1 || reviewStars > 5}
+                className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {reviewSubmitting ? 'Submitting…' : 'Submit'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Help / Raise Concern modal */}
+      {helpModalRef && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
+            <h3 className="text-lg font-bold text-gray-900 mb-1">Help / Raise a Concern</h3>
+            <p className="text-sm text-gray-600 mb-4">
+              Describe the issue with this completed referral. Our team will review it.
+            </p>
+            {!helpConfirming ? (
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Issue Type <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    value={helpIssueType}
+                    onChange={(e) => setHelpIssueType(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                  >
+                    <option value="">Select…</option>
+                    {ISSUE_TYPES.map((t) => (
+                      <option key={t} value={t}>{t}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Description <span className="text-red-500">*</span>
+                  </label>
+                  <textarea
+                    value={helpDescription}
+                    onChange={(e) => setHelpDescription(e.target.value)}
+                    rows={4}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none resize-y"
+                    placeholder="Please describe your concern in detail..."
+                  />
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-2 text-sm">
+                <p><strong>Issue:</strong> {helpIssueType}</p>
+                <p><strong>Description:</strong></p>
+                <p className="text-gray-700 whitespace-pre-wrap bg-gray-50 p-3 rounded-lg">{helpDescription}</p>
+                <p className="text-amber-700">Are you sure you want to submit this concern?</p>
+              </div>
+            )}
+            {helpError && <p className="mt-2 text-sm text-red-600">{helpError}</p>}
+            <div className="flex justify-end gap-2 mt-6">
+              {!helpConfirming ? (
+                <>
+                  <button
+                    onClick={handleCloseHelpModal}
+                    className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 text-sm font-medium"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleHelpConfirm}
+                    className="px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 text-sm font-medium"
+                  >
+                    Raise concern
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button
+                    onClick={() => setHelpConfirming(false)}
+                    className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 text-sm font-medium"
+                  >
+                    Back
+                  </button>
+                  <button
+                    onClick={handleSubmitHelp}
+                    disabled={helpSubmitting}
+                    className="px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {helpSubmitting ? 'Submitting…' : 'Submit'}
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

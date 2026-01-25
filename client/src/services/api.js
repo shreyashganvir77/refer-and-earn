@@ -28,6 +28,8 @@ export const api = {
   requestedReferrals: referralsService.requested,
   providerReferrals: referralsService.providerReferrals,
   completeReferral: referralsService.complete,
+  submitProviderReview: referralsService.submitProviderReview,
+  createSupportTicket: referralsService.createSupportTicket,
 
   // Payments
   createPaymentOrder: paymentsService.createOrder,
