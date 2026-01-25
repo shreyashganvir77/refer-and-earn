@@ -42,7 +42,6 @@ export default function ReferralRequestRow({
   return (
     <article
       className="border border-gray-200 rounded-lg bg-white p-4 shadow-sm hover:shadow-md hover:border-gray-300 transition-shadow"
-      role="article"
     >
       {/* Top: name (left), status + date (right) */}
       <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
