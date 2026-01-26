@@ -1,10 +1,10 @@
-import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import CompanySelector from '../components/CompanySelector';
-import ProviderCard from '../components/ProviderCard';
-import LoadingSpinner from '../components/LoadingSpinner';
-import { api } from '../services/api';
-import { useAuth } from '../context/AuthContext';
+import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import CompanySelector from "../components/CompanySelector";
+import ProviderCard from "../components/ProviderCard";
+import LoadingSpinner from "../components/LoadingSpinner";
+import { api } from "../services/api";
+import { useAuth } from "../context/AuthContext";
 
 const WantReferral = () => {
   const navigate = useNavigate();
@@ -16,11 +16,11 @@ const WantReferral = () => {
   const [showResumeModal, setShowResumeModal] = useState(false);
   const [selectedProvider, setSelectedProvider] = useState(null);
   const [formData, setFormData] = useState({
-    job_id: '',
-    job_title: '',
-    resume_link: '',
-    phone_number: '',
-    referral_summary: '',
+    job_id: "",
+    job_title: "",
+    resume_link: "",
+    phone_number: "",
+    referral_summary: "",
   });
   const [wordCount, setWordCount] = useState(0);
   const [formErrors, setFormErrors] = useState({});
@@ -49,14 +49,16 @@ const WantReferral = () => {
       })
       .catch((e) => {
         if (!mounted) return;
-        setError(e.message || 'Failed to load providers');
+        setError(e.message || "Failed to load providers");
         setProviders([]);
       })
       .finally(() => {
         if (!mounted) return;
         setLoadingProviders(false);
         requestAnimationFrame(() => {
-          document.getElementById('providers-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          document
+            .getElementById("providers-section")
+            ?.scrollIntoView({ behavior: "smooth", block: "start" });
         });
       });
     return () => {
@@ -67,11 +69,11 @@ const WantReferral = () => {
   const handleRequestReferral = (provider) => {
     setSelectedProvider(provider);
     setFormData({
-      job_id: '',
-      job_title: '',
-      resume_link: '',
-      phone_number: '',
-      referral_summary: '',
+      job_id: "",
+      job_title: "",
+      resume_link: "",
+      phone_number: "",
+      referral_summary: "",
     });
     setFormErrors({});
     setShowResumeModal(true);
@@ -79,39 +81,39 @@ const WantReferral = () => {
 
   const validateForm = () => {
     const errors = {};
-    
+
     if (!formData.job_id.trim()) {
-      errors.job_id = 'Job ID is required';
+      errors.job_id = "Job ID is required";
     }
-    
+
     if (!formData.job_title.trim()) {
-      errors.job_title = 'Job title is required';
+      errors.job_title = "Job title is required";
     }
-    
+
     if (!formData.resume_link.trim()) {
-      errors.resume_link = 'Resume link is required';
+      errors.resume_link = "Resume link is required";
     } else {
       try {
         new URL(formData.resume_link.trim());
       } catch {
-        errors.resume_link = 'Please enter a valid URL';
+        errors.resume_link = "Please enter a valid URL";
       }
     }
-    
+
     if (!formData.phone_number.trim()) {
-      errors.phone_number = 'Phone number is required';
+      errors.phone_number = "Phone number is required";
     } else if (formData.phone_number.trim().length < 10) {
-      errors.phone_number = 'Phone number must be at least 10 characters';
+      errors.phone_number = "Phone number must be at least 10 characters";
     }
-    
+
     if (!formData.referral_summary.trim()) {
-      errors.referral_summary = 'Referral summary is required';
+      errors.referral_summary = "Referral summary is required";
     } else if (wordCount < 150) {
       errors.referral_summary = `Referral summary must be at least 150 words (current: ${wordCount} words)`;
     } else if (wordCount > 300) {
       errors.referral_summary = `Referral summary must not exceed 300 words (current: ${wordCount} words)`;
     }
-    
+
     setFormErrors(errors);
     return Object.keys(errors).length === 0;
   };
@@ -140,17 +142,17 @@ const WantReferral = () => {
 
       const referralRequestId = referralResponse.referral_request?.request_id;
       if (!referralRequestId) {
-        throw new Error('Failed to get referral request ID');
+        throw new Error("Failed to get referral request ID");
       }
 
       // Close modal first
       setShowResumeModal(false);
       setFormData({
-        job_id: '',
-        job_title: '',
-        resume_link: '',
-        phone_number: '',
-        referral_summary: '',
+        job_id: "",
+        job_title: "",
+        resume_link: "",
+        phone_number: "",
+        referral_summary: "",
       });
       setFormErrors({});
       setSelectedProvider(null);
@@ -158,34 +160,37 @@ const WantReferral = () => {
       // Create payment order and open Razorpay checkout
       try {
         const orderData = await api.createPaymentOrder(referralRequestId);
-        
+
         const options = {
           key: orderData.key || process.env.REACT_APP_RAZORPAY_KEY,
           amount: orderData.amount,
-          currency: orderData.currency || 'INR',
+          currency: orderData.currency || "INR",
           order_id: orderData.orderId,
-          name: 'Refer & Earn',
+          name: "Refer & Earn",
           description: `Payment for referral request #${referralRequestId}`,
           handler: async (response) => {
             try {
               await api.verifyPayment(
                 response.razorpay_order_id,
                 response.razorpay_payment_id,
-                response.razorpay_signature
+                response.razorpay_signature,
               );
-              alert('Payment successful! Your referral request is now active.');
-              navigate('/my-referrals');
+              alert("Payment successful! Your referral request is now active.");
+              navigate("/my-referrals");
             } catch (error) {
-              const errorMsg = error.data?.error || error.message || 'Payment verification failed';
+              const errorMsg =
+                error.data?.error ||
+                error.message ||
+                "Payment verification failed";
               alert(`Payment verification failed: ${errorMsg}`);
             }
           },
           prefill: {
-            name: user?.full_name || '',
-            email: user?.email || '',
+            name: user?.full_name || "",
+            email: user?.email || "",
           },
           theme: {
-            color: '#4F46E5',
+            color: "#4F46E5",
           },
           modal: {
             ondismiss: () => {
@@ -196,26 +201,34 @@ const WantReferral = () => {
         };
 
         const razorpay = new window.Razorpay(options);
-        razorpay.on('payment.failed', (response) => {
-          alert(`Payment failed: ${response.error.description || 'Unknown error'}`);
+        razorpay.on("payment.failed", (response) => {
+          alert(
+            `Payment failed: ${response.error.description || "Unknown error"}`,
+          );
         });
         razorpay.open();
       } catch (paymentError) {
-        const errorMsg = paymentError.data?.error || paymentError.message || 'Failed to initialize payment';
-        alert(`Referral created but payment failed: ${errorMsg}. You can pay later from My Referrals.`);
-        navigate('/my-referrals');
+        const errorMsg =
+          paymentError.data?.error ||
+          paymentError.message ||
+          "Failed to initialize payment";
+        alert(
+          `Referral created but payment failed: ${errorMsg}. You can pay later from My Referrals.`,
+        );
+        navigate("/my-referrals");
       }
     } catch (e) {
-      const errorMsg = e.data?.error || e.message || 'Failed to create referral request';
+      const errorMsg =
+        e.data?.error || e.message || "Failed to create referral request";
       alert(errorMsg);
     }
   };
 
   const handleInputChange = (field, value) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    setFormData((prev) => ({ ...prev, [field]: value }));
     // Clear error for this field when user starts typing
     if (formErrors[field]) {
-      setFormErrors(prev => {
+      setFormErrors((prev) => {
         const next = { ...prev };
         delete next[field];
         return next;
@@ -229,7 +242,7 @@ const WantReferral = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <button
-              onClick={() => navigate('/')}
+              onClick={() => navigate("/")}
               className="text-indigo-600 hover:text-indigo-700 font-medium"
             >
               ← Back to Home
@@ -238,7 +251,7 @@ const WantReferral = () => {
             <div className="flex items-center gap-2">
               {user?.is_referral_provider && (
                 <button
-                  onClick={() => navigate('/provider/referrals')}
+                  onClick={() => navigate("/provider/referrals")}
                   className="px-3 py-2 text-sm font-medium text-gray-700 hover:text-indigo-700 hover:bg-indigo-50 rounded-lg transition-colors"
                 >
                   Provider Dashboard
@@ -251,7 +264,9 @@ const WantReferral = () => {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-8">
-          <h2 className="text-xl font-bold text-gray-900 mb-3">Select a Company</h2>
+          <h2 className="text-xl font-bold text-gray-900 mb-3">
+            Select a Company
+          </h2>
           <CompanySelector
             value={selectedCompany}
             onChange={setSelectedCompany}
@@ -296,7 +311,8 @@ const WantReferral = () => {
               <>
                 <div className="mb-6">
                   <h2 className="text-xl font-bold text-gray-900 mb-1">
-                    Referral Providers at {selectedCompany.company_name ?? selectedCompany.name}
+                    Referral Providers at{" "}
+                    {selectedCompany.company_name ?? selectedCompany.name}
                   </h2>
                   <p className="text-gray-600 text-sm">
                     Choose a provider to request a referral
@@ -319,10 +335,16 @@ const WantReferral = () => {
                           user_id: provider.user_id ?? provider.id,
                           name: provider.full_name ?? provider.name,
                           role: provider.role_designation ?? provider.role,
-                          rating: provider.provider_rating ?? provider.rating ?? 0,
-                          price: provider.price_per_referral ?? provider.price ?? 0,
-                          price_per_referral: provider.price_per_referral ?? provider.price ?? 0,
-                          description: provider.bio_description ?? provider.description ?? '',
+                          rating:
+                            provider.provider_rating ?? provider.rating ?? 0,
+                          price:
+                            provider.price_per_referral ?? provider.price ?? 0,
+                          price_per_referral:
+                            provider.price_per_referral ?? provider.price ?? 0,
+                          description:
+                            provider.bio_description ??
+                            provider.description ??
+                            "",
                         }}
                         onRequestReferral={handleRequestReferral}
                       />
@@ -361,7 +383,9 @@ const WantReferral = () => {
       {showResumeModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center px-4 z-50 overflow-y-auto py-8">
           <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full p-6 my-8">
-            <h3 className="text-xl font-bold text-gray-900 mb-2">Request Referral</h3>
+            <h3 className="text-xl font-bold text-gray-900 mb-2">
+              Request Referral
+            </h3>
             <p className="text-sm text-gray-600 mb-6">
               Please fill in all the required information to request a referral.
             </p>
@@ -369,95 +393,124 @@ const WantReferral = () => {
             <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-2">
               {/* Job ID */}
               <div>
-                <label htmlFor="job-id" className="block text-sm font-medium text-gray-700 mb-1">
+                <label
+                  htmlFor="job-id"
+                  className="block text-sm font-medium text-gray-700 mb-1"
+                >
                   Job ID <span className="text-red-500">*</span>
                 </label>
                 <input
                   id="job-id"
                   type="text"
                   value={formData.job_id}
-                  onChange={(e) => handleInputChange('job_id', e.target.value)}
+                  onChange={(e) => handleInputChange("job_id", e.target.value)}
                   placeholder="e.g., JOB-12345"
                   className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 ${
                     formErrors.job_id
-                      ? 'border-red-300 focus:ring-red-500'
-                      : 'border-gray-300 focus:ring-indigo-500'
+                      ? "border-red-300 focus:ring-red-500"
+                      : "border-gray-300 focus:ring-indigo-500"
                   }`}
                 />
                 {formErrors.job_id && (
-                  <p className="mt-1 text-sm text-red-600">{formErrors.job_id}</p>
+                  <p className="mt-1 text-sm text-red-600">
+                    {formErrors.job_id}
+                  </p>
                 )}
               </div>
 
               {/* Job Title */}
               <div>
-                <label htmlFor="job-title" className="block text-sm font-medium text-gray-700 mb-1">
+                <label
+                  htmlFor="job-title"
+                  className="block text-sm font-medium text-gray-700 mb-1"
+                >
                   Job Title <span className="text-red-500">*</span>
                 </label>
                 <input
                   id="job-title"
                   type="text"
                   value={formData.job_title}
-                  onChange={(e) => handleInputChange('job_title', e.target.value)}
+                  onChange={(e) =>
+                    handleInputChange("job_title", e.target.value)
+                  }
                   placeholder="e.g., Software Engineer"
                   className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 ${
                     formErrors.job_title
-                      ? 'border-red-300 focus:ring-red-500'
-                      : 'border-gray-300 focus:ring-indigo-500'
+                      ? "border-red-300 focus:ring-red-500"
+                      : "border-gray-300 focus:ring-indigo-500"
                   }`}
                 />
                 {formErrors.job_title && (
-                  <p className="mt-1 text-sm text-red-600">{formErrors.job_title}</p>
+                  <p className="mt-1 text-sm text-red-600">
+                    {formErrors.job_title}
+                  </p>
                 )}
               </div>
 
               {/* Resume Link */}
               <div>
-                <label htmlFor="resume-link" className="block text-sm font-medium text-gray-700 mb-1">
+                <label
+                  htmlFor="resume-link"
+                  className="block text-sm font-medium text-gray-700 mb-1"
+                >
                   Resume Link <span className="text-red-500">*</span>
                 </label>
                 <input
                   id="resume-link"
                   type="url"
                   value={formData.resume_link}
-                  onChange={(e) => handleInputChange('resume_link', e.target.value)}
+                  onChange={(e) =>
+                    handleInputChange("resume_link", e.target.value)
+                  }
                   placeholder="https://drive.google.com/..."
                   className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 ${
                     formErrors.resume_link
-                      ? 'border-red-300 focus:ring-red-500'
-                      : 'border-gray-300 focus:ring-indigo-500'
+                      ? "border-red-300 focus:ring-red-500"
+                      : "border-gray-300 focus:ring-indigo-500"
                   }`}
                 />
                 {formErrors.resume_link && (
-                  <p className="mt-1 text-sm text-red-600">{formErrors.resume_link}</p>
+                  <p className="mt-1 text-sm text-red-600">
+                    {formErrors.resume_link}
+                  </p>
                 )}
               </div>
 
               {/* Phone Number */}
               <div>
-                <label htmlFor="phone-number" className="block text-sm font-medium text-gray-700 mb-1">
+                <label
+                  htmlFor="phone-number"
+                  className="block text-sm font-medium text-gray-700 mb-1"
+                >
                   Phone Number <span className="text-red-500">*</span>
                 </label>
                 <input
                   id="phone-number"
                   type="tel"
                   value={formData.phone_number}
-                  onChange={(e) => handleInputChange('phone_number', e.target.value)}
+                  onChange={(e) =>
+                    handleInputChange("phone_number", e.target.value)
+                  }
                   placeholder="e.g., +1 (555) 123-4567"
                   className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 ${
                     formErrors.phone_number
-                      ? 'border-red-300 focus:ring-red-500'
-                      : 'border-gray-300 focus:ring-indigo-500'
+                      ? "border-red-300 focus:ring-red-500"
+                      : "border-gray-300 focus:ring-indigo-500"
                   }`}
                 />
                 {formErrors.phone_number && (
-                  <p className="mt-1 text-sm text-red-600">{formErrors.phone_number}</p>
+                  <p className="mt-1 text-sm text-red-600">
+                    {formErrors.phone_number}
+                  </p>
                 )}
               </div>
 
               {/* Referral Summary */}
               <div>
-                <label htmlFor="referral-summary" className="block text-sm font-medium text-gray-700 mb-1">
+                <label
+                  htmlFor="referral-summary"
+                  className="block text-sm font-medium text-gray-700 mb-1"
+                >
                   Referral Summary <span className="text-red-500">*</span>
                   <span className="ml-2 text-xs font-normal text-gray-500">
                     ({wordCount}/150-300 words)
@@ -466,34 +519,38 @@ const WantReferral = () => {
                 <textarea
                   id="referral-summary"
                   value={formData.referral_summary}
-                  onChange={(e) => handleInputChange('referral_summary', e.target.value)}
+                  onChange={(e) =>
+                    handleInputChange("referral_summary", e.target.value)
+                  }
                   placeholder="Write a detailed summary explaining why you need this referral, your background, and how you're a good fit for the role (150-300 words)..."
                   rows={8}
                   className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 resize-y ${
                     formErrors.referral_summary
-                      ? 'border-red-300 focus:ring-red-500'
+                      ? "border-red-300 focus:ring-red-500"
                       : wordCount < 150 || wordCount > 300
-                      ? 'border-yellow-300 focus:ring-yellow-500'
-                      : 'border-gray-300 focus:ring-indigo-500'
+                        ? "border-yellow-300 focus:ring-yellow-500"
+                        : "border-gray-300 focus:ring-indigo-500"
                   }`}
                 />
                 <div className="mt-1 flex items-center justify-between">
                   {formErrors.referral_summary ? (
-                    <p className="text-sm text-red-600">{formErrors.referral_summary}</p>
+                    <p className="text-sm text-red-600">
+                      {formErrors.referral_summary}
+                    </p>
                   ) : (
                     <p className="text-xs text-gray-500">
                       {wordCount < 150
                         ? `Minimum 150 words required (${150 - wordCount} more needed)`
                         : wordCount > 300
-                        ? `Maximum 300 words allowed (${wordCount - 300} over limit)`
-                        : 'Word count is valid'}
+                          ? `Maximum 300 words allowed (${wordCount - 300} over limit)`
+                          : "Word count is valid"}
                     </p>
                   )}
                   <span
                     className={`text-xs font-medium ${
                       wordCount < 150 || wordCount > 300
-                        ? 'text-yellow-600'
-                        : 'text-green-600'
+                        ? "text-yellow-600"
+                        : "text-green-600"
                     }`}
                   >
                     {wordCount} words
@@ -507,11 +564,11 @@ const WantReferral = () => {
                 onClick={() => {
                   setShowResumeModal(false);
                   setFormData({
-                    job_id: '',
-                    job_title: '',
-                    resume_link: '',
-                    phone_number: '',
-                    referral_summary: '',
+                    job_id: "",
+                    job_title: "",
+                    resume_link: "",
+                    phone_number: "",
+                    referral_summary: "",
                   });
                   setFormErrors({});
                   setSelectedProvider(null);

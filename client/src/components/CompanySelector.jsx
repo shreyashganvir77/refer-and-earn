@@ -1,15 +1,15 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { useDebounce } from '../hooks/useDebounce';
-import { api } from '../services/api';
+import React, { useState, useEffect, useRef, useCallback } from "react";
+import { useDebounce } from "../hooks/useDebounce";
+import { api } from "../services/api";
 
 const DROPDOWN_LIMIT = 15;
 const DEBOUNCE_MS = 300;
 
 const logoPlaceholder = (name) =>
-  `https://ui-avatars.com/api/?name=${encodeURIComponent(name || 'Company')}&background=6366f1&color=fff&size=48`;
+  `https://ui-avatars.com/api/?name=${encodeURIComponent(name || "Company")}&background=6366f1&color=fff&size=48`;
 
 function CompanyOption({ company, isHighlighted, onClick }) {
-  const name = company.company_name ?? company.name ?? '';
+  const name = company.company_name ?? company.name ?? "";
   const logo = company.logo_url ?? company.logo ?? null;
 
   return (
@@ -17,7 +17,9 @@ function CompanyOption({ company, isHighlighted, onClick }) {
       type="button"
       onClick={() => onClick(company)}
       className={`w-full flex items-center gap-3 px-3 py-2.5 text-left rounded-lg transition-colors ${
-        isHighlighted ? 'bg-indigo-50 text-indigo-900' : 'hover:bg-gray-50 text-gray-900'
+        isHighlighted
+          ? "bg-indigo-50 text-indigo-900"
+          : "hover:bg-gray-50 text-gray-900"
       }`}
     >
       <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-gray-100 overflow-hidden">
@@ -31,7 +33,11 @@ function CompanyOption({ company, isHighlighted, onClick }) {
             }}
           />
         ) : (
-          <img src={logoPlaceholder(name)} alt="" className="w-full h-full object-contain" />
+          <img
+            src={logoPlaceholder(name)}
+            alt=""
+            className="w-full h-full object-contain"
+          />
         )}
       </div>
       <span className="font-medium truncate">{name}</span>
@@ -44,8 +50,12 @@ function CompanyOption({ company, isHighlighted, onClick }) {
   );
 }
 
-export default function CompanySelector({ value, onChange, placeholder = 'Search or select a company' }) {
-  const [query, setQuery] = useState('');
+export default function CompanySelector({
+  value,
+  onChange,
+  placeholder = "Search or select a company",
+}) {
+  const [query, setQuery] = useState("");
   const [options, setOptions] = useState([]);
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
@@ -57,7 +67,7 @@ export default function CompanySelector({ value, onChange, placeholder = 'Search
   const debouncedQuery = useDebounce(query, DEBOUNCE_MS);
 
   const fetchCompanies = useCallback(async (search) => {
-    const key = (search || '').toLowerCase().trim();
+    const key = (search || "").toLowerCase().trim();
     const cached = cacheRef.current.get(key);
     if (cached) {
       setOptions(cached);
@@ -91,29 +101,31 @@ export default function CompanySelector({ value, onChange, placeholder = 'Search
         setOpen(false);
       }
     }
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
   useEffect(() => {
     if (!open || highlightIndex < 0) return;
-    listRef.current?.children[highlightIndex]?.scrollIntoView({ block: 'nearest' });
+    listRef.current?.children[highlightIndex]?.scrollIntoView({
+      block: "nearest",
+    });
   }, [open, highlightIndex]);
 
   const handleSelect = useCallback(
     (company) => {
       onChange(company);
-      setQuery('');
+      setQuery("");
       setOpen(false);
       setHighlightIndex(-1);
       inputRef.current?.blur();
     },
-    [onChange]
+    [onChange],
   );
 
   const handleClear = useCallback(() => {
     onChange(null);
-    setQuery('');
+    setQuery("");
     setOpen(true);
     inputRef.current?.focus();
   }, [onChange]);
@@ -121,39 +133,41 @@ export default function CompanySelector({ value, onChange, placeholder = 'Search
   const handleKeyDown = useCallback(
     (e) => {
       if (!open) {
-        if (e.key === 'ArrowDown' || e.key === 'Enter') {
+        if (e.key === "ArrowDown" || e.key === "Enter") {
           e.preventDefault();
           setOpen(true);
         }
         return;
       }
-      if (e.key === 'Escape') {
+      if (e.key === "Escape") {
         e.preventDefault();
         setOpen(false);
         setHighlightIndex(-1);
         inputRef.current?.blur();
         return;
       }
-      if (e.key === 'ArrowDown') {
+      if (e.key === "ArrowDown") {
         e.preventDefault();
         setHighlightIndex((i) => (i < options.length - 1 ? i + 1 : i));
         return;
       }
-      if (e.key === 'ArrowUp') {
+      if (e.key === "ArrowUp") {
         e.preventDefault();
         setHighlightIndex((i) => (i > 0 ? i - 1 : -1));
         return;
       }
-      if (e.key === 'Enter' && highlightIndex >= 0 && options[highlightIndex]) {
+      if (e.key === "Enter" && highlightIndex >= 0 && options[highlightIndex]) {
         e.preventDefault();
         handleSelect(options[highlightIndex]);
       }
     },
-    [open, options, highlightIndex, handleSelect]
+    [open, options, highlightIndex, handleSelect],
   );
 
-  const displayName = value ? (value.company_name ?? value.name ?? '') : '';
-  const showDropdown = open && (loading || options.length > 0 || (debouncedQuery.trim() && !loading));
+  const displayName = value ? (value.company_name ?? value.name ?? "") : "";
+  const showDropdown =
+    open &&
+    (loading || options.length > 0 || (debouncedQuery.trim() && !loading));
 
   return (
     <div ref={containerRef} className="relative w-full">
@@ -171,7 +185,11 @@ export default function CompanySelector({ value, onChange, placeholder = 'Search
                   }}
                 />
               ) : (
-                <img src={logoPlaceholder(displayName)} alt="" className="w-full h-full object-contain" />
+                <img
+                  src={logoPlaceholder(displayName)}
+                  alt=""
+                  className="w-full h-full object-contain"
+                />
               )}
             </div>
             <span className="font-medium text-gray-900">{displayName}</span>
@@ -181,8 +199,18 @@ export default function CompanySelector({ value, onChange, placeholder = 'Search
               className="ml-1 p-1 rounded hover:bg-indigo-100 text-gray-500 hover:text-gray-700 transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-1"
               aria-label="Clear selection"
             >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M6 18L18 6M6 6l12 12"
+                />
               </svg>
             </button>
           </div>
@@ -210,7 +238,10 @@ export default function CompanySelector({ value, onChange, placeholder = 'Search
               aria-label={placeholder}
             />
             {loading && (
-              <div className="absolute right-3 top-1/2 -translate-y-1/2" aria-hidden>
+              <div
+                className="absolute right-3 top-1/2 -translate-y-1/2"
+                aria-hidden
+              >
                 <svg
                   className="animate-spin h-5 w-5 text-indigo-500"
                   xmlns="http://www.w3.org/2000/svg"
@@ -244,10 +275,16 @@ export default function CompanySelector({ value, onChange, placeholder = 'Search
               {loading && options.length === 0 ? (
                 <li className="px-4 py-3 text-sm text-gray-500">Searching…</li>
               ) : options.length === 0 ? (
-                <li className="px-4 py-3 text-sm text-gray-500">No companies found</li>
+                <li className="px-4 py-3 text-sm text-gray-500">
+                  No companies found
+                </li>
               ) : (
                 options.map((company, i) => (
-                  <li key={company.company_id ?? company.id ?? i} role="option" aria-selected={i === highlightIndex}>
+                  <li
+                    key={company.company_id ?? company.id ?? i}
+                    role="option"
+                    aria-selected={i === highlightIndex}
+                  >
                     <CompanyOption
                       company={company}
                       isHighlighted={i === highlightIndex}

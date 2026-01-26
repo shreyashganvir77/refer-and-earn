@@ -73,6 +73,14 @@ async function updateUserProfile(userId, body) {
     sets.push('price_per_referral = @price_per_referral');
     request.input('price_per_referral', sql.Decimal(10, 2), p);
   }
+  if (body.phone_number !== undefined) {
+    const pn = body.phone_number == null || body.phone_number === '' ? null : String(body.phone_number).trim();
+    if (pn !== null && pn.length > 20) {
+      throw new Error('phone_number must be at most 20 characters');
+    }
+    sets.push('phone_number = @phone_number');
+    request.input('phone_number', sql.NVarChar(20), pn || null);
+  }
 
   sets.push('updated_at = SYSUTCDATETIME()');
 

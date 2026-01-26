@@ -1,7 +1,7 @@
-import React from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
-import ProviderReferrals from './ProviderReferrals';
+import React from "react";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
+import ProviderReferrals from "./ProviderReferrals";
 
 const GiveReferral = () => {
   const navigate = useNavigate();
@@ -19,7 +19,7 @@ const GiveReferral = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <button
-              onClick={() => navigate('/')}
+              onClick={() => navigate("/")}
               className="text-indigo-600 hover:text-indigo-700 font-medium"
             >
               ← Back to Home
@@ -33,17 +33,28 @@ const GiveReferral = () => {
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="bg-white rounded-xl shadow-lg p-8 text-center">
           <div className="w-20 h-20 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-6">
-            <svg className="w-10 h-10 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            <svg
+              className="w-10 h-10 text-purple-600"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 4v16m8-8H4"
+              />
             </svg>
           </div>
           <h2 className="text-3xl font-bold text-gray-900 mb-4">Coming Soon</h2>
           <p className="text-lg text-gray-600 mb-8">
-            The "Give a Referral" feature is currently under development. 
-            Soon you'll be able to list yourself as a referral provider and earn money by helping others.
+            The "Give a Referral" feature is currently under development. Soon
+            you'll be able to list yourself as a referral provider and earn
+            money by helping others.
           </p>
           <button
-            onClick={() => navigate('/')}
+            onClick={() => navigate("/")}
             className="px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium"
           >
             Back to Home

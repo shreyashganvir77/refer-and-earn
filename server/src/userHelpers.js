@@ -31,6 +31,7 @@ async function getUserWithCompanyById(userId) {
     price_per_referral: row.price_per_referral,
     provider_rating: row.provider_rating,
     provider_rating_count: row.provider_rating_count,
+    phone_number: row.phone_number,
     created_at: row.created_at,
     updated_at: row.updated_at,
   };

@@ -1,7 +1,7 @@
 const Razorpay = require('razorpay');
 const crypto = require('crypto');
 const { getPool, sql } = require('./db');
-const { hasOpenTicketForReferral } = require('./supportTicketsService');
+const { releasePayoutForReferral, handlePayoutProcessed, handlePayoutFailed } = require('./payoutsService');
 
 // Initialize Razorpay client
 const razorpay = new Razorpay({
@@ -258,149 +258,11 @@ async function verifyPayment(orderId, paymentId, signature) {
 }
 
 /**
- * Release payment to provider (called when referral is completed).
- * Blocks release if an OPEN support ticket exists for this referral.
+ * Release payment to provider via Razorpay UPI payout (called when referral is completed).
+ * Uses payoutsService: enforces COMPLETED, PAID, ACTIVE, no OPEN ticket, creates VPA payout.
  */
 async function releasePaymentToProvider(referralRequestId, providerUserId) {
-  const open = await hasOpenTicketForReferral(referralRequestId);
-  if (open) {
-    return { success: false, blocked: true, reason: 'OPEN_SUPPORT_TICKET' };
-  }
-
-  const pool = await getPool();
-
-  // Fetch payment record
-  const paymentResult = await pool.request()
-    .input('referral_request_id', sql.BigInt, referralRequestId)
-    .input('provider_user_id', sql.BigInt, providerUserId)
-    .query(`
-      SELECT TOP 1 * FROM payments
-      WHERE referral_request_id = @referral_request_id
-        AND provider_user_id = @provider_user_id
-        AND status = 'PAID'
-    `);
-
-  if (paymentResult.recordset.length === 0) {
-    throw new Error('Paid payment not found for this referral');
-  }
-
-  const payment = paymentResult.recordset[0];
-
-  // Check if already released
-  if (payment.status === 'RELEASED') {
-    return { success: true, already_released: true };
-  }
-
-  // Fetch provider's fund account ID (stored in user profile or separate table)
-  // For now, we'll use a placeholder - you may need to add fund_account_id to users table
-  const providerResult = await pool.request()
-    .input('user_id', sql.BigInt, providerUserId)
-    .query('SELECT TOP 1 email, full_name FROM users WHERE user_id = @user_id');
-
-  if (providerResult.recordset.length === 0) {
-    throw new Error('Provider not found');
-  }
-
-  // Note: Razorpay payouts require fund_account_id which needs to be set up separately
-  // This is a placeholder - you'll need to implement fund account creation/retrieval
-  const fundAccountId = process.env.RAZORPAY_PROVIDER_FUND_ACCOUNT_ID; // Or fetch from DB
-
-  if (!fundAccountId) {
-    // For now, just mark as released in DB (manual payout)
-    // In production, implement actual Razorpay payout
-    const transaction = new sql.Transaction(await getPool());
-    try {
-      await transaction.begin();
-      const reqTx = new sql.Request(transaction);
-
-      await reqTx
-        .input('payment_id', sql.BigInt, payment.payment_id)
-        .query(`
-          UPDATE payments
-          SET status = 'RELEASED',
-              updated_at = SYSUTCDATETIME()
-          WHERE payment_id = @payment_id
-        `);
-
-      await reqTx
-        .input('referral_request_id', sql.BigInt, referralRequestId)
-        .query(`
-          UPDATE referral_requests
-          SET payment_status = 'RELEASED',
-              updated_at = SYSUTCDATETIME()
-          WHERE request_id = @referral_request_id
-        `);
-
-      await transaction.commit();
-
-      return {
-        success: true,
-        payment_id: payment.payment_id,
-        provider_amount: payment.provider_amount,
-        note: 'Payment marked as released (manual payout required)',
-      };
-    } catch (error) {
-      await transaction.rollback();
-      throw error;
-    }
-  }
-
-  // If fund account ID is available, create Razorpay payout
-  try {
-    const payout = await razorpay.payouts.create({
-      account_number: process.env.RAZORPAY_ACCOUNT_NUMBER,
-      fund_account_id: fundAccountId,
-      amount: Math.round(payment.provider_amount * 100), // Convert to paise
-      currency: 'INR',
-      mode: 'IMPS',
-      purpose: 'payout',
-      queue_if_low_balance: true,
-      notes: {
-        referral_request_id: String(referralRequestId),
-        payment_id: String(payment.payment_id),
-      },
-    });
-
-    // Update payment record
-    const transaction = new sql.Transaction(await getPool());
-    try {
-      await transaction.begin();
-      const reqTx = new sql.Request(transaction);
-
-      await reqTx
-        .input('payment_id', sql.BigInt, payment.payment_id)
-        .query(`
-          UPDATE payments
-          SET status = 'RELEASED',
-              updated_at = SYSUTCDATETIME()
-          WHERE payment_id = @payment_id
-        `);
-
-      await reqTx
-        .input('referral_request_id', sql.BigInt, referralRequestId)
-        .query(`
-          UPDATE referral_requests
-          SET payment_status = 'RELEASED',
-              updated_at = SYSUTCDATETIME()
-          WHERE request_id = @referral_request_id
-        `);
-
-      await transaction.commit();
-
-      return {
-        success: true,
-        payment_id: payment.payment_id,
-        payout_id: payout.id,
-        provider_amount: payment.provider_amount,
-      };
-    } catch (error) {
-      await transaction.rollback();
-      throw error;
-    }
-  } catch (error) {
-    console.error('Razorpay payout error:', error);
-    throw new Error('Failed to create payout: ' + error.message);
-  }
+  return releasePayoutForReferral(referralRequestId);
 }
 
 /**
@@ -584,17 +446,12 @@ async function handleWebhookEvent(event, payload) {
     }
 
     case 'payout.processed': {
-      const payoutId = payload.payout?.entity?.id;
-      // Update payment status if needed
-      // You may want to store payout_id in payments table
-      console.log('Payout processed:', payoutId);
+      await handlePayoutProcessed(payload);
       break;
     }
 
     case 'payout.failed': {
-      const payoutId = payload.payout?.entity?.id;
-      console.error('Payout failed:', payoutId);
-      // Handle failed payout - may need to retry or notify admin
+      await handlePayoutFailed(payload);
       break;
     }
 
