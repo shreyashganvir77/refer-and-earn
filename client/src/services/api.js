@@ -16,6 +16,7 @@ export const api = {
   patchMe: userService.patchMe,
   startReferralOtp: userService.startReferralOtp,
   verifyReferralOtp: userService.verifyReferralOtp,
+  payoutSetup: userService.payoutSetup,
 
   // Companies/providers
   companies: companiesService.list,

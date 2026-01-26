@@ -13,6 +13,7 @@ const {
   startOtpVerification,
   verifyOtp,
 } = require('./src/userService');
+const { setupPayoutForProvider } = require('./src/payoutsService');
 const {
   getCompanyDomains,
   listCompanies,
@@ -150,6 +151,25 @@ app.post('/users/me/otp/verify', requireAuth, async (req, res) => {
       return res.status(400).json({ errorCode: error.errorCode });
     }
     return res.status(400).json({ error: error.message || 'OTP verification failed' });
+  }
+});
+
+// ---- Payout setup (Razorpay Contact + Fund Account VPA). Provider only, after profile complete. ----
+app.post('/users/me/payout-setup', requireAuth, async (req, res) => {
+  try {
+    const userId = parseBigIntParam(req.auth.sub);
+    if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+
+    const { upi_id } = req.body || {};
+    const upiId = typeof upi_id === 'string' ? upi_id.trim() : '';
+    if (!upiId || !upiId.includes('@')) {
+      return res.status(400).json({ error: 'upi_id is required and must be a valid UPI ID (e.g. user@upi)' });
+    }
+
+    const result = await setupPayoutForProvider(userId, upiId);
+    return res.json(result);
+  } catch (error) {
+    return res.status(400).json({ error: error.message || 'Payout setup failed' });
   }
 });
 

@@ -21,5 +21,12 @@ export const userService = {
       body: { code },
     });
   },
+
+  payoutSetup(upiId) {
+    return request('/users/me/payout-setup', {
+      method: 'POST',
+      body: { upi_id: upiId },
+    });
+  },
 };
 

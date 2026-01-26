@@ -1,8 +1,8 @@
-import React, { useEffect, useState, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { api } from '../services/api';
-import { useAuth } from '../context/AuthContext';
-import { isPersonalEmail, isValidCompanyEmail } from '../utils/emailValidation';
+import React, { useEffect, useState, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
+import { api } from "../services/api";
+import { useAuth } from "../context/AuthContext";
+import { isPersonalEmail, isValidCompanyEmail } from "../utils/emailValidation";
 
 const ProfileCompletion = () => {
   const navigate = useNavigate();
@@ -13,8 +13,8 @@ const ProfileCompletion = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
-  const [companyEmail, setCompanyEmail] = useState('');
-  const [otpCode, setOtpCode] = useState('');
+  const [companyEmail, setCompanyEmail] = useState("");
+  const [otpCode, setOtpCode] = useState("");
   const [otpSent, setOtpSent] = useState(false);
   const [otpVerified, setOtpVerified] = useState(false);
   const [otpError, setOtpError] = useState(null);
@@ -22,25 +22,25 @@ const ProfileCompletion = () => {
   const [otpVerifying, setOtpVerifying] = useState(false);
 
   const [form, setForm] = useState({
-    company_id: user?.company_id ?? '',
-    role_designation: user?.role_designation ?? '',
-    years_experience: user?.years_experience ?? '',
+    company_id: user?.company_id ?? "",
+    role_designation: user?.role_designation ?? "",
+    years_experience: user?.years_experience ?? "",
     is_referral_provider: Boolean(user?.is_referral_provider),
-    bio_description: user?.bio_description ?? '',
-    price_per_referral: user?.price_per_referral ?? '',
+    bio_description: user?.bio_description ?? "",
+    price_per_referral: user?.price_per_referral ?? "",
   });
 
   useEffect(() => {
     setForm({
-      company_id: user?.company_id ?? '',
-      role_designation: user?.role_designation ?? '',
-      years_experience: user?.years_experience ?? '',
+      company_id: user?.company_id ?? "",
+      role_designation: user?.role_designation ?? "",
+      years_experience: user?.years_experience ?? "",
       is_referral_provider: Boolean(user?.is_referral_provider),
-      bio_description: user?.bio_description ?? '',
-      price_per_referral: user?.price_per_referral ?? '',
+      bio_description: user?.bio_description ?? "",
+      price_per_referral: user?.price_per_referral ?? "",
     });
     setOtpVerified(Boolean(user?.is_company_email_verified));
-    setCompanyEmail(user?.company_email ?? '');
+    setCompanyEmail(user?.company_email ?? "");
   }, [user]);
 
   useEffect(() => {
@@ -52,13 +52,15 @@ const ProfileCompletion = () => {
         setCompanies(data.companies || []);
       } catch (e) {
         if (!mounted) return;
-        setError(e.message || 'Failed to load companies');
+        setError(e.message || "Failed to load companies");
       } finally {
         if (mounted) setLoading(false);
       }
     }
     load();
-    return () => { mounted = false; };
+    return () => {
+      mounted = false;
+    };
   }, []);
 
   useEffect(() => {
@@ -68,7 +70,8 @@ const ProfileCompletion = () => {
     }
     let mounted = true;
     setLoadingDomains(true);
-    api.companyDomains(form.company_id)
+    api
+      .companyDomains(form.company_id)
       .then((domains) => {
         if (!mounted) return;
         setCompanyDomains(domains || []);
@@ -80,23 +83,27 @@ const ProfileCompletion = () => {
       .finally(() => {
         if (mounted) setLoadingDomains(false);
       });
-    return () => { mounted = false; };
+    return () => {
+      mounted = false;
+    };
   }, [form.company_id]);
 
   useEffect(() => {
     if (!authLoading && user && isProfileComplete) {
-      navigate('/');
+      navigate("/");
     }
   }, [authLoading, user, isProfileComplete, navigate]);
 
   const companyEmailError = useMemo(() => {
-    const email = (companyEmail || '').trim();
+    const email = (companyEmail || "").trim();
     if (!email) return null;
-    if (isPersonalEmail(email)) return 'Personal email addresses are not allowed';
+    if (isPersonalEmail(email))
+      return "Personal email addresses are not allowed";
     if (loadingDomains) return null;
-    if (companyDomains.length === 0) return 'No allowed domains configured for this company. Please select another company or contact support.';
+    if (companyDomains.length === 0)
+      return "No allowed domains configured for this company. Please select another company or contact support.";
     if (!isValidCompanyEmail(email, companyDomains)) {
-      const domains = companyDomains.join(', ');
+      const domains = companyDomains.join(", ");
       return `Please use your official company email (${domains})`;
     }
     return null;
@@ -104,27 +111,27 @@ const ProfileCompletion = () => {
 
   const canSendOtp = Boolean(
     form.company_id &&
-    (companyEmail || '').trim() &&
+    (companyEmail || "").trim() &&
     !companyEmailError &&
     !loadingDomains &&
     companyDomains.length > 0 &&
     !otpSending &&
-    !otpVerified
+    !otpVerified,
   );
 
   const onChange = (e) => {
     const { name, value, type, checked } = e.target;
     setForm((f) => {
-      const next = { ...f, [name]: type === 'checkbox' ? checked : value };
-      if (name === 'is_referral_provider' && !checked) {
-        setCompanyEmail('');
-        setOtpCode('');
+      const next = { ...f, [name]: type === "checkbox" ? checked : value };
+      if (name === "is_referral_provider" && !checked) {
+        setCompanyEmail("");
+        setOtpCode("");
         setOtpSent(false);
         setOtpVerified(false);
         setOtpError(null);
       }
-      if (name === 'company_id') {
-        setOtpCode('');
+      if (name === "company_id") {
+        setOtpCode("");
         setOtpSent(false);
         setOtpVerified(false);
         setOtpError(null);
@@ -135,7 +142,7 @@ const ProfileCompletion = () => {
 
   const onCompanyEmailChange = (e) => {
     setCompanyEmail(e.target.value);
-    setOtpCode('');
+    setOtpCode("");
     setOtpSent(false);
     setOtpVerified(false);
     setOtpError(null);
@@ -144,7 +151,9 @@ const ProfileCompletion = () => {
   const onSubmit = async (e) => {
     e.preventDefault();
     if (form.is_referral_provider && !otpVerified) {
-      setError('Please verify your official company email via OTP before enabling referrals.');
+      setError(
+        "Please verify your official company email via OTP before enabling referrals.",
+      );
       return;
     }
     setSaving(true);
@@ -153,14 +162,18 @@ const ProfileCompletion = () => {
       await updateMe({
         company_id: form.company_id ? form.company_id : null,
         role_designation: form.role_designation || null,
-        years_experience: form.years_experience === '' ? null : Number(form.years_experience),
+        years_experience:
+          form.years_experience === "" ? null : Number(form.years_experience),
         is_referral_provider: Boolean(form.is_referral_provider),
         bio_description: form.bio_description || null,
-        price_per_referral: form.price_per_referral === '' ? null : Number(form.price_per_referral),
+        price_per_referral:
+          form.price_per_referral === ""
+            ? null
+            : Number(form.price_per_referral),
       });
-      navigate('/');
+      navigate("/");
     } catch (e2) {
-      setError(e2.message || 'Failed to save profile');
+      setError(e2.message || "Failed to save profile");
     } finally {
       setSaving(false);
     }
@@ -170,9 +183,12 @@ const ProfileCompletion = () => {
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-purple-100">
       <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="bg-white rounded-xl shadow-lg p-8">
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">Complete your profile</h1>
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">
+            Complete your profile
+          </h1>
           <p className="text-gray-600 mb-8">
-            Add your company and role so we can match you with the right referrals.
+            Add your company and role so we can match you with the right
+            referrals.
           </p>
 
           {loading ? (
@@ -180,7 +196,9 @@ const ProfileCompletion = () => {
           ) : (
             <form onSubmit={onSubmit} className="space-y-5">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Company</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Company
+                </label>
                 <select
                   name="company_id"
                   value={form.company_id}
@@ -188,7 +206,9 @@ const ProfileCompletion = () => {
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
                   required
                 >
-                  <option value="" disabled>Select your company</option>
+                  <option value="" disabled>
+                    Select your company
+                  </option>
                   {companies.map((c) => (
                     <option key={c.company_id} value={c.company_id}>
                       {c.company_name}
@@ -198,7 +218,9 @@ const ProfileCompletion = () => {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Role / designation</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Role / designation
+                </label>
                 <input
                   name="role_designation"
                   value={form.role_designation}
@@ -210,7 +232,9 @@ const ProfileCompletion = () => {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Years of experience</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Years of experience
+                </label>
                 <input
                   name="years_experience"
                   type="number"
@@ -232,7 +256,10 @@ const ProfileCompletion = () => {
                   onChange={onChange}
                   className="h-4 w-4"
                 />
-                <label htmlFor="is_referral_provider" className="text-sm text-gray-700">
+                <label
+                  htmlFor="is_referral_provider"
+                  className="text-sm text-gray-700"
+                >
                   I want to provide paid referrals
                 </label>
               </div>
@@ -243,8 +270,9 @@ const ProfileCompletion = () => {
                     Verify your company identity
                   </p>
                   <p className="text-xs text-gray-500">
-                    To confirm you genuinely work at this company, enter your official company email.
-                    We will send a one-time password (OTP) to that address for verification.
+                    To confirm you genuinely work at this company, enter your
+                    official company email. We will send a one-time password
+                    (OTP) to that address for verification.
                   </p>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -256,16 +284,20 @@ const ProfileCompletion = () => {
                       onChange={onCompanyEmailChange}
                       disabled={otpVerified}
                       className={`w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none disabled:bg-gray-100 ${
-                        companyEmailError ? 'border-red-500' : 'border-gray-300'
+                        companyEmailError ? "border-red-500" : "border-gray-300"
                       }`}
                       placeholder="you@company.com"
                       required
                     />
                     {companyEmailError && (
-                      <p className="mt-1 text-sm text-red-600">{companyEmailError}</p>
+                      <p className="mt-1 text-sm text-red-600">
+                        {companyEmailError}
+                      </p>
                     )}
                     {loadingDomains && (
-                      <p className="mt-1 text-xs text-gray-500">Loading company domains…</p>
+                      <p className="mt-1 text-xs text-gray-500">
+                        Loading company domains…
+                      </p>
                     )}
                   </div>
                   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
@@ -276,10 +308,13 @@ const ProfileCompletion = () => {
                         if (!canSendOtp) return;
                         try {
                           setOtpSending(true);
-                          await api.startReferralOtp(companyEmail.trim(), form.company_id);
+                          await api.startReferralOtp(
+                            companyEmail.trim(),
+                            form.company_id,
+                          );
                           setOtpSent(true);
                         } catch (err) {
-                          setOtpError(err.message || 'Failed to send OTP');
+                          setOtpError(err.message || "Failed to send OTP");
                         } finally {
                           setOtpSending(false);
                         }
@@ -287,7 +322,11 @@ const ProfileCompletion = () => {
                       disabled={!canSendOtp}
                       className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors text-sm font-medium disabled:opacity-60 disabled:cursor-not-allowed"
                     >
-                      {otpSending ? 'Sending OTP…' : otpSent ? 'Resend OTP' : 'Send OTP'}
+                      {otpSending
+                        ? "Sending OTP…"
+                        : otpSent
+                          ? "Resend OTP"
+                          : "Send OTP"}
                     </button>
                     {otpVerified && (
                       <span className="text-sm text-green-600 font-medium">
@@ -309,7 +348,9 @@ const ProfileCompletion = () => {
                         onClick={async () => {
                           setOtpError(null);
                           if (!otpCode) {
-                            setOtpError('Please enter the OTP from your email.');
+                            setOtpError(
+                              "Please enter the OTP from your email.",
+                            );
                             return;
                           }
                           try {
@@ -317,7 +358,9 @@ const ProfileCompletion = () => {
                             await api.verifyReferralOtp(otpCode.trim());
                             setOtpVerified(true);
                           } catch (err) {
-                            setOtpError(err.message || 'OTP verification failed');
+                            setOtpError(
+                              err.message || "OTP verification failed",
+                            );
                           } finally {
                             setOtpVerifying(false);
                           }
@@ -325,16 +368,20 @@ const ProfileCompletion = () => {
                         disabled={otpVerifying}
                         className="px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-black transition-colors text-sm font-medium disabled:opacity-60"
                       >
-                        {otpVerifying ? 'Verifying…' : 'Verify OTP'}
+                        {otpVerifying ? "Verifying…" : "Verify OTP"}
                       </button>
                     </div>
                   )}
-                  {otpError && <p className="text-xs text-red-600">{otpError}</p>}
+                  {otpError && (
+                    <p className="text-xs text-red-600">{otpError}</p>
+                  )}
                 </div>
               )}
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Bio / description</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Bio / description
+                </label>
                 <textarea
                   name="bio_description"
                   value={form.bio_description}
@@ -347,7 +394,9 @@ const ProfileCompletion = () => {
 
               {form.is_referral_provider && (
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Price per referral (USD)</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Price per referral (INR)
+                  </label>
                   <input
                     name="price_per_referral"
                     type="number"
@@ -368,7 +417,7 @@ const ProfileCompletion = () => {
                 disabled={saving || (form.is_referral_provider && !otpVerified)}
                 className="w-full px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium disabled:opacity-60 disabled:cursor-not-allowed"
               >
-                {saving ? 'Saving…' : 'Save & Continue'}
+                {saving ? "Saving…" : "Save & Continue"}
               </button>
             </form>
           )}
@@ -379,4 +428,3 @@ const ProfileCompletion = () => {
 };
 
 export default ProfileCompletion;
-

@@ -1,8 +1,8 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { api } from '../services/api';
-import { useAuth } from '../context/AuthContext';
-import ReferralRequestRow from '../components/ReferralRequestRow';
+import React, { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { api } from "../services/api";
+import { useAuth } from "../context/AuthContext";
+import ReferralRequestRow from "../components/ReferralRequestRow";
 
 const SKELETON_COUNT = 5;
 
@@ -49,12 +49,12 @@ const ProviderReferrals = () => {
         const data = await api.providerReferrals();
         setReferrals(data.referrals || []);
       } catch (err) {
-        setError(err.message || 'Failed to load referrals');
+        setError(err.message || "Failed to load referrals");
       } finally {
         setLoading(false);
       }
     },
-    []
+    [],
   );
 
   useEffect(() => {
@@ -67,7 +67,7 @@ const ProviderReferrals = () => {
       await api.completeReferral(id);
       await fetchReferrals();
     } catch (err) {
-      setError(err.message || 'Failed to complete referral');
+      setError(err.message || "Failed to complete referral");
     } finally {
       setCompletingId(null);
       setConfirmId(null);
@@ -79,10 +79,12 @@ const ProviderReferrals = () => {
       <nav className="bg-white shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
-            <h1 className="text-xl font-bold text-indigo-600">Referral Requests</h1>
+            <h1 className="text-xl font-bold text-indigo-600">
+              Referral Requests
+            </h1>
             <div className="flex gap-3">
               <button
-                onClick={() => navigate('/')}
+                onClick={() => navigate("/")}
                 className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
               >
                 Home
@@ -90,7 +92,7 @@ const ProviderReferrals = () => {
               <button
                 onClick={() => {
                   logout();
-                  navigate('/login');
+                  navigate("/login");
                 }}
                 className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors"
               >
@@ -105,9 +107,12 @@ const ProviderReferrals = () => {
         <div className="bg-white rounded-xl shadow-lg p-6">
           <div className="flex items-center justify-between mb-6">
             <div>
-              <h2 className="text-2xl font-bold text-gray-900">Referral Requests</h2>
+              <h2 className="text-2xl font-bold text-gray-900">
+                Referral Requests
+              </h2>
               <p className="text-gray-600 text-sm">
-                Manage incoming referrals. Mark as completed once you’ve provided the referral.
+                Manage incoming referrals. Mark as completed once you’ve
+                provided the referral.
               </p>
             </div>
           </div>
@@ -119,7 +124,9 @@ const ProviderReferrals = () => {
           )}
 
           {!loading && referrals.length === 0 && (
-            <div className="text-center py-10 text-gray-600">No referral requests available.</div>
+            <div className="text-center py-10 text-gray-600">
+              No referral requests available.
+            </div>
           )}
 
           {loading && (
@@ -138,7 +145,9 @@ const ProviderReferrals = () => {
                   request={ref}
                   isExpanded={expandedRequestId === ref.id}
                   onToggleExpand={() =>
-                    setExpandedRequestId((prev) => (prev === ref.id ? null : ref.id))
+                    setExpandedRequestId((prev) =>
+                      prev === ref.id ? null : ref.id,
+                    )
                   }
                   onMarkCompleteClick={() => setConfirmId(ref.id)}
                   isCompleting={completingId === ref.id}
@@ -153,7 +162,9 @@ const ProviderReferrals = () => {
       {confirmId && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center px-4">
           <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
-            <h3 className="text-lg font-bold text-gray-900 mb-2">Confirm completion</h3>
+            <h3 className="text-lg font-bold text-gray-900 mb-2">
+              Confirm completion
+            </h3>
             <p className="text-sm text-gray-600 mb-6">
               Confirm that you have successfully provided the referral.
             </p>
@@ -169,7 +180,7 @@ const ProviderReferrals = () => {
                 className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-60"
                 disabled={completingId === confirmId}
               >
-                {completingId === confirmId ? 'Updating…' : 'Confirm'}
+                {completingId === confirmId ? "Updating…" : "Confirm"}
               </button>
             </div>
           </div>
@@ -180,4 +191,3 @@ const ProviderReferrals = () => {
 };
 
 export default ProviderReferrals;
-

@@ -1,15 +1,23 @@
-import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { api } from '../services/api';
-import { useAuth } from '../context/AuthContext';
-import MyReferralRow from '../components/MyReferralRow';
+import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { api } from "../services/api";
+import { useAuth } from "../context/AuthContext";
+import MyReferralRow from "../components/MyReferralRow";
 
-const ISSUE_TYPES = ['Referral not provided', 'Poor communication', 'Misleading referral', 'Other'];
+const ISSUE_TYPES = [
+  "Referral not provided",
+  "Poor communication",
+  "Misleading referral",
+  "Other",
+];
 const SKELETON_COUNT = 5;
 
 function SkeletonCard() {
   return (
-    <div className="border border-gray-200 rounded-lg bg-white p-4 shadow-sm" aria-hidden>
+    <div
+      className="border border-gray-200 rounded-lg bg-white p-4 shadow-sm"
+      aria-hidden
+    >
       <div className="flex justify-between gap-2 mb-3">
         <div className="h-4 w-32 bg-gray-200 rounded animate-pulse" />
         <div className="flex gap-2">
@@ -43,13 +51,13 @@ const MyReferrals = () => {
 
   const [reviewModalRef, setReviewModalRef] = useState(null);
   const [reviewStars, setReviewStars] = useState(0);
-  const [reviewText, setReviewText] = useState('');
+  const [reviewText, setReviewText] = useState("");
   const [reviewSubmitting, setReviewSubmitting] = useState(false);
   const [reviewError, setReviewError] = useState(null);
 
   const [helpModalRef, setHelpModalRef] = useState(null);
-  const [helpIssueType, setHelpIssueType] = useState('');
-  const [helpDescription, setHelpDescription] = useState('');
+  const [helpIssueType, setHelpIssueType] = useState("");
+  const [helpDescription, setHelpDescription] = useState("");
   const [helpSubmitting, setHelpSubmitting] = useState(false);
   const [helpError, setHelpError] = useState(null);
   const [helpConfirming, setHelpConfirming] = useState(false);
@@ -61,7 +69,7 @@ const MyReferrals = () => {
       const data = await api.requestedReferrals();
       setReferrals(data.referrals || []);
     } catch (err) {
-      setError(err.message || 'Failed to load referrals');
+      setError(err.message || "Failed to load referrals");
     } finally {
       setLoading(false);
     }
@@ -74,14 +82,14 @@ const MyReferrals = () => {
   const handleOpenReviewModal = (ref) => {
     setReviewModalRef(ref);
     setReviewStars(0);
-    setReviewText('');
+    setReviewText("");
     setReviewError(null);
   };
 
   const handleCloseReviewModal = () => {
     setReviewModalRef(null);
     setReviewStars(0);
-    setReviewText('');
+    setReviewText("");
     setReviewError(null);
   };
 
@@ -90,11 +98,14 @@ const MyReferrals = () => {
     setReviewSubmitting(true);
     setReviewError(null);
     try {
-      await api.submitProviderReview(reviewModalRef.id, { stars: reviewStars, review_text: reviewText || null });
+      await api.submitProviderReview(reviewModalRef.id, {
+        stars: reviewStars,
+        review_text: reviewText || null,
+      });
       handleCloseReviewModal();
       await loadReferrals();
     } catch (err) {
-      setReviewError(err.message || 'Failed to submit review');
+      setReviewError(err.message || "Failed to submit review");
     } finally {
       setReviewSubmitting(false);
     }
@@ -102,23 +113,23 @@ const MyReferrals = () => {
 
   const handleOpenHelpModal = (ref) => {
     setHelpModalRef(ref);
-    setHelpIssueType('');
-    setHelpDescription('');
+    setHelpIssueType("");
+    setHelpDescription("");
     setHelpError(null);
     setHelpConfirming(false);
   };
 
   const handleCloseHelpModal = () => {
     setHelpModalRef(null);
-    setHelpIssueType('');
-    setHelpDescription('');
+    setHelpIssueType("");
+    setHelpDescription("");
     setHelpError(null);
     setHelpConfirming(false);
   };
 
   const handleHelpConfirm = () => {
     if (!helpIssueType || !helpDescription.trim()) {
-      setHelpError('Please select an issue type and provide a description.');
+      setHelpError("Please select an issue type and provide a description.");
       return;
     }
     setHelpConfirming(true);
@@ -129,11 +140,14 @@ const MyReferrals = () => {
     setHelpSubmitting(true);
     setHelpError(null);
     try {
-      await api.createSupportTicket(helpModalRef.id, { issue_type: helpIssueType, description: helpDescription.trim() });
+      await api.createSupportTicket(helpModalRef.id, {
+        issue_type: helpIssueType,
+        description: helpDescription.trim(),
+      });
       handleCloseHelpModal();
       await loadReferrals();
     } catch (err) {
-      setHelpError(err.message || 'Failed to submit');
+      setHelpError(err.message || "Failed to submit");
     } finally {
       setHelpSubmitting(false);
     }
@@ -143,68 +157,78 @@ const MyReferrals = () => {
     setProcessingPayment(referralId);
     try {
       const orderData = await api.createPaymentOrder(referralId);
-      
+
       const options = {
         key: orderData.key || process.env.REACT_APP_RAZORPAY_KEY,
         amount: orderData.amount,
-        currency: orderData.currency || 'INR',
+        currency: orderData.currency || "INR",
         order_id: orderData.orderId,
-        name: 'Refer & Earn',
+        name: "Refer & Earn",
         description: `Payment for referral request #${referralId}`,
         handler: async (response) => {
           try {
             await api.verifyPayment(
               response.razorpay_order_id,
               response.razorpay_payment_id,
-              response.razorpay_signature
+              response.razorpay_signature,
             );
-            alert('Payment successful!');
+            alert("Payment successful!");
             // Reload referrals
             const data = await api.requestedReferrals();
             setReferrals(data.referrals || []);
           } catch (error) {
-            const errorMsg = error.data?.error || error.message || 'Payment verification failed';
+            const errorMsg =
+              error.data?.error ||
+              error.message ||
+              "Payment verification failed";
             alert(`Payment verification failed: ${errorMsg}`);
           } finally {
             setProcessingPayment(null);
           }
         },
         prefill: {
-          name: user?.full_name || '',
-          email: user?.email || '',
+          name: user?.full_name || "",
+          email: user?.email || "",
         },
         theme: {
-          color: '#4F46E5',
+          color: "#4F46E5",
         },
       };
 
       const razorpay = new window.Razorpay(options);
-      razorpay.on('payment.failed', (response) => {
-        alert(`Payment failed: ${response.error.description || 'Unknown error'}`);
+      razorpay.on("payment.failed", (response) => {
+        alert(
+          `Payment failed: ${response.error.description || "Unknown error"}`,
+        );
         setProcessingPayment(null);
       });
       razorpay.open();
     } catch (error) {
-      const errorMsg = error.data?.error || error.message || 'Failed to initialize payment';
+      const errorMsg =
+        error.data?.error || error.message || "Failed to initialize payment";
       alert(`Payment failed: ${errorMsg}`);
       setProcessingPayment(null);
     }
   };
 
   const handleRefund = async (referralId) => {
-    if (!window.confirm('Are you sure you want to request a refund? This action cannot be undone.')) {
+    if (
+      !window.confirm(
+        "Are you sure you want to request a refund? This action cannot be undone.",
+      )
+    ) {
       return;
     }
 
     setProcessingRefund(referralId);
     try {
       await api.refundPayment(referralId);
-      alert('Refund request processed successfully!');
+      alert("Refund request processed successfully!");
       // Reload referrals
       const data = await api.requestedReferrals();
       setReferrals(data.referrals || []);
     } catch (error) {
-      const errorMsg = error.data?.error || error.message || 'Refund failed';
+      const errorMsg = error.data?.error || error.message || "Refund failed";
       alert(`Refund failed: ${errorMsg}`);
     } finally {
       setProcessingRefund(null);
@@ -217,12 +241,14 @@ const MyReferrals = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <button
-              onClick={() => navigate('/')}
+              onClick={() => navigate("/")}
               className="text-indigo-600 hover:text-indigo-700 font-medium"
             >
               ← Back to Home
             </button>
-            <h1 className="text-xl font-bold text-gray-900">My Referral Requests</h1>
+            <h1 className="text-xl font-bold text-gray-900">
+              My Referral Requests
+            </h1>
             <div className="w-24"></div>
           </div>
         </div>
@@ -246,12 +272,24 @@ const MyReferrals = () => {
 
           {!loading && !error && referrals.length === 0 && (
             <div className="text-center py-12">
-              <svg className="w-16 h-16 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              <svg
+                className="w-16 h-16 text-gray-400 mx-auto mb-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                />
               </svg>
-              <p className="text-gray-600 text-lg mb-4">You have not made any referral requests yet.</p>
+              <p className="text-gray-600 text-lg mb-4">
+                You have not made any referral requests yet.
+              </p>
               <button
-                onClick={() => navigate('/want-referral')}
+                onClick={() => navigate("/want-referral")}
                 className="px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium"
               >
                 Request a Referral
@@ -262,9 +300,12 @@ const MyReferrals = () => {
           {!loading && !error && referrals.length > 0 && (
             <div className="space-y-4">
               <div className="mb-6">
-                <h2 className="text-2xl font-bold text-gray-900">Your Referral Requests</h2>
+                <h2 className="text-2xl font-bold text-gray-900">
+                  Your Referral Requests
+                </h2>
                 <p className="text-gray-600 text-sm mt-1">
-                  Track the status of your referral requests. You can rate providers once referrals are completed.
+                  Track the status of your referral requests. You can rate
+                  providers once referrals are completed.
                 </p>
               </div>
 
@@ -274,7 +315,9 @@ const MyReferrals = () => {
                     key={ref.id}
                     request={ref}
                     isExpanded={expandedId === ref.id}
-                    onToggleExpand={() => setExpandedId((prev) => (prev === ref.id ? null : ref.id))}
+                    onToggleExpand={() =>
+                      setExpandedId((prev) => (prev === ref.id ? null : ref.id))
+                    }
                     onPayNow={handlePayNow}
                     onRefund={handleRefund}
                     onReview={handleOpenReviewModal}
@@ -293,7 +336,9 @@ const MyReferrals = () => {
       {reviewModalRef && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
-            <h3 className="text-lg font-bold text-gray-900 mb-1">Review & Rate</h3>
+            <h3 className="text-lg font-bold text-gray-900 mb-1">
+              Review & Rate
+            </h3>
             <p className="text-sm text-gray-600 mb-4">
               Rate {reviewModalRef.provider_name} for this completed referral.
             </p>
@@ -310,18 +355,22 @@ const MyReferrals = () => {
                       onClick={() => setReviewStars(n)}
                       className={`w-10 h-10 rounded-lg text-lg transition-colors ${
                         reviewStars >= n
-                          ? 'bg-indigo-100 text-indigo-700'
-                          : 'bg-gray-100 text-gray-400 hover:bg-gray-200'
+                          ? "bg-indigo-100 text-indigo-700"
+                          : "bg-gray-100 text-gray-400 hover:bg-gray-200"
                       }`}
                     >
                       ★
                     </button>
                   ))}
                 </div>
-                <p className="text-xs text-gray-500 mt-1">1 = Poor, 5 = Excellent</p>
+                <p className="text-xs text-gray-500 mt-1">
+                  1 = Poor, 5 = Excellent
+                </p>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Review (optional)</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Review (optional)
+                </label>
                 <textarea
                   value={reviewText}
                   onChange={(e) => setReviewText(e.target.value)}
@@ -331,7 +380,9 @@ const MyReferrals = () => {
                 />
               </div>
             </div>
-            {reviewError && <p className="mt-2 text-sm text-red-600">{reviewError}</p>}
+            {reviewError && (
+              <p className="mt-2 text-sm text-red-600">{reviewError}</p>
+            )}
             <div className="flex justify-end gap-2 mt-6">
               <button
                 onClick={handleCloseReviewModal}
@@ -341,10 +392,12 @@ const MyReferrals = () => {
               </button>
               <button
                 onClick={handleSubmitReview}
-                disabled={reviewSubmitting || reviewStars < 1 || reviewStars > 5}
+                disabled={
+                  reviewSubmitting || reviewStars < 1 || reviewStars > 5
+                }
                 className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {reviewSubmitting ? 'Submitting…' : 'Submit'}
+                {reviewSubmitting ? "Submitting…" : "Submit"}
               </button>
             </div>
           </div>
@@ -355,9 +408,12 @@ const MyReferrals = () => {
       {helpModalRef && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
-            <h3 className="text-lg font-bold text-gray-900 mb-1">Help / Raise a Concern</h3>
+            <h3 className="text-lg font-bold text-gray-900 mb-1">
+              Help / Raise a Concern
+            </h3>
             <p className="text-sm text-gray-600 mb-4">
-              Describe the issue with this completed referral. Our team will review it.
+              Describe the issue with this completed referral. Our team will
+              review it.
             </p>
             {!helpConfirming ? (
               <div className="space-y-4">
@@ -372,7 +428,9 @@ const MyReferrals = () => {
                   >
                     <option value="">Select…</option>
                     {ISSUE_TYPES.map((t) => (
-                      <option key={t} value={t}>{t}</option>
+                      <option key={t} value={t}>
+                        {t}
+                      </option>
                     ))}
                   </select>
                 </div>
@@ -391,13 +449,23 @@ const MyReferrals = () => {
               </div>
             ) : (
               <div className="space-y-2 text-sm">
-                <p><strong>Issue:</strong> {helpIssueType}</p>
-                <p><strong>Description:</strong></p>
-                <p className="text-gray-700 whitespace-pre-wrap bg-gray-50 p-3 rounded-lg">{helpDescription}</p>
-                <p className="text-amber-700">Are you sure you want to submit this concern?</p>
+                <p>
+                  <strong>Issue:</strong> {helpIssueType}
+                </p>
+                <p>
+                  <strong>Description:</strong>
+                </p>
+                <p className="text-gray-700 whitespace-pre-wrap bg-gray-50 p-3 rounded-lg">
+                  {helpDescription}
+                </p>
+                <p className="text-amber-700">
+                  Are you sure you want to submit this concern?
+                </p>
               </div>
             )}
-            {helpError && <p className="mt-2 text-sm text-red-600">{helpError}</p>}
+            {helpError && (
+              <p className="mt-2 text-sm text-red-600">{helpError}</p>
+            )}
             <div className="flex justify-end gap-2 mt-6">
               {!helpConfirming ? (
                 <>
@@ -427,7 +495,7 @@ const MyReferrals = () => {
                     disabled={helpSubmitting}
                     className="px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    {helpSubmitting ? 'Submitting…' : 'Submit'}
+                    {helpSubmitting ? "Submitting…" : "Submit"}
                   </button>
                 </>
               )}
