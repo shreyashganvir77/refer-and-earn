@@ -48,6 +48,7 @@ const MyReferrals = () => {
   const [processingPayment, setProcessingPayment] = useState(null);
   const [processingRefund, setProcessingRefund] = useState(null);
   const [expandedId, setExpandedId] = useState(null);
+  const [statusFilter, setStatusFilter] = useState('ACTIVE');
 
   const [reviewModalRef, setReviewModalRef] = useState(null);
   const [reviewStars, setReviewStars] = useState(0);
@@ -235,6 +236,35 @@ const MyReferrals = () => {
     }
   };
 
+  // Filter logic
+  const filteredReferrals = referrals.filter((req) => {
+    const status = (req.status || '').toUpperCase();
+    if (statusFilter === 'ACTIVE') {
+      return status === 'PENDING' || status === 'ACCEPTED';
+    }
+    if (statusFilter === 'COMPLETED') {
+      return status === 'COMPLETED';
+    }
+    if (statusFilter === 'REJECTED') {
+      return status === 'REJECTED';
+    }
+    return false;
+  });
+
+  // Calculate counts
+  const activeCount = referrals.filter(
+    (req) => {
+      const status = (req.status || '').toUpperCase();
+      return status === 'PENDING' || status === 'ACCEPTED';
+    }
+  ).length;
+  const completedCount = referrals.filter(
+    (req) => (req.status || '').toUpperCase() === 'COMPLETED'
+  ).length;
+  const rejectedCount = referrals.filter(
+    (req) => (req.status || '').toUpperCase() === 'REJECTED'
+  ).length;
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-purple-100">
       <nav className="bg-white shadow-sm mb-8">
@@ -309,24 +339,84 @@ const MyReferrals = () => {
                 </p>
               </div>
 
-              <div className="grid gap-4" role="list">
-                {referrals.map((ref) => (
-                  <MyReferralRow
-                    key={ref.id}
-                    request={ref}
-                    isExpanded={expandedId === ref.id}
-                    onToggleExpand={() =>
-                      setExpandedId((prev) => (prev === ref.id ? null : ref.id))
-                    }
-                    onPayNow={handlePayNow}
-                    onRefund={handleRefund}
-                    onReview={handleOpenReviewModal}
-                    onHelp={handleOpenHelpModal}
-                    isProcessingPayment={processingPayment === ref.id}
-                    isProcessingRefund={processingRefund === ref.id}
-                  />
-                ))}
+              {/* Filter Buttons */}
+              <div className="flex flex-wrap items-center gap-3 mb-6 pb-4 border-b border-gray-200">
+                <button
+                  onClick={() => setStatusFilter('ACTIVE')}
+                  className={`px-4 py-2 rounded-lg font-medium text-sm transition-colors ${
+                    statusFilter === 'ACTIVE'
+                      ? 'bg-indigo-600 text-white'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  Active ({activeCount})
+                </button>
+                <button
+                  onClick={() => setStatusFilter('COMPLETED')}
+                  className={`px-4 py-2 rounded-lg font-medium text-sm transition-colors ${
+                    statusFilter === 'COMPLETED'
+                      ? 'bg-indigo-600 text-white'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  Completed ({completedCount})
+                </button>
+                {rejectedCount > 0 && (
+                  <button
+                    onClick={() => setStatusFilter('REJECTED')}
+                    className={`px-4 py-2 rounded-lg font-medium text-sm transition-colors ${
+                      statusFilter === 'REJECTED'
+                        ? 'bg-indigo-600 text-white'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                  >
+                    Rejected ({rejectedCount})
+                  </button>
+                )}
               </div>
+
+              {/* Filtered Results */}
+              {filteredReferrals.length === 0 ? (
+                <div className="text-center py-12">
+                  <svg
+                    className="w-16 h-16 text-gray-400 mx-auto mb-4"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                    />
+                  </svg>
+                  <p className="text-gray-600 text-lg">
+                    {statusFilter === 'ACTIVE' && 'No active referral requests'}
+                    {statusFilter === 'COMPLETED' && 'No completed referral requests'}
+                    {statusFilter === 'REJECTED' && 'No rejected referral requests'}
+                  </p>
+                </div>
+              ) : (
+                <div className="grid gap-4" role="list">
+                  {filteredReferrals.map((ref) => (
+                    <MyReferralRow
+                      key={ref.id}
+                      request={ref}
+                      isExpanded={expandedId === ref.id}
+                      onToggleExpand={() =>
+                        setExpandedId((prev) => (prev === ref.id ? null : ref.id))
+                      }
+                      onPayNow={handlePayNow}
+                      onRefund={handleRefund}
+                      onReview={handleOpenReviewModal}
+                      onHelp={handleOpenHelpModal}
+                      isProcessingPayment={processingPayment === ref.id}
+                      isProcessingRefund={processingRefund === ref.id}
+                    />
+                  ))}
+                </div>
+              )}
             </div>
           )}
         </div>
