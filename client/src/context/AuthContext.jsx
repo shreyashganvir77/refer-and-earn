@@ -85,6 +85,12 @@ export function AuthProvider({ children }) {
         setCompany(data.company);
         return data;
       },
+      async refreshUser() {
+        const data = await api.me();
+        setUser(data.user);
+        setCompany(data.company);
+        return data;
+      },
     };
   }, [token, user, company, loading]);
 

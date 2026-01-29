@@ -28,5 +28,12 @@ export const userService = {
       body: { upi_id: upiId },
     });
   },
+
+  setupProviderPayout({ price_per_referral, upi_id }) {
+    return request('/api/providers/setup-payout', {
+      method: 'POST',
+      body: { price_per_referral, upi_id },
+    });
+  },
 };
 

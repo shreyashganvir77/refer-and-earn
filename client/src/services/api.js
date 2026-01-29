@@ -17,6 +17,7 @@ export const api = {
   startReferralOtp: userService.startReferralOtp,
   verifyReferralOtp: userService.verifyReferralOtp,
   payoutSetup: userService.payoutSetup,
+  setupProviderPayout: userService.setupProviderPayout,
 
   // Companies/providers
   companies: companiesService.list,

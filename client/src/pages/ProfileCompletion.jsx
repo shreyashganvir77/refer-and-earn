@@ -3,10 +3,11 @@ import { useNavigate } from "react-router-dom";
 import { api } from "../services/api";
 import { useAuth } from "../context/AuthContext";
 import { isPersonalEmail, isValidCompanyEmail } from "../utils/emailValidation";
+import { isValidUpiId } from "../utils/upiValidation";
 
 const ProfileCompletion = () => {
   const navigate = useNavigate();
-  const { user, updateMe, isProfileComplete, loading: authLoading } = useAuth();
+  const { user, updateMe, refreshUser, isProfileComplete, loading: authLoading } = useAuth();
   const [companies, setCompanies] = useState([]);
   const [companyDomains, setCompanyDomains] = useState([]);
   const [loadingDomains, setLoadingDomains] = useState(false);
@@ -20,6 +21,9 @@ const ProfileCompletion = () => {
   const [otpError, setOtpError] = useState(null);
   const [otpSending, setOtpSending] = useState(false);
   const [otpVerifying, setOtpVerifying] = useState(false);
+  const [providerUpiId, setProviderUpiId] = useState("");
+  const [providerSetupLoading, setProviderSetupLoading] = useState(false);
+  const [providerSetupError, setProviderSetupError] = useState(null);
 
   const [form, setForm] = useState({
     company_id: user?.company_id ?? "",
@@ -393,21 +397,116 @@ const ProfileCompletion = () => {
               </div>
 
               {form.is_referral_provider && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Price per referral (INR)
-                  </label>
-                  <input
-                    name="price_per_referral"
-                    type="number"
-                    min="0"
-                    value={form.price_per_referral}
-                    onChange={onChange}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
-                    placeholder="e.g. 150"
-                    required
-                  />
-                </div>
+                <>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Price per referral (INR)
+                    </label>
+                    <input
+                      name="price_per_referral"
+                      type="number"
+                      min="0"
+                      value={form.price_per_referral}
+                      onChange={onChange}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                      placeholder="e.g. 500"
+                      required
+                    />
+                  </div>
+
+                  {user?.payout_status === "ACTIVE" ? (
+                    <p className="text-sm text-green-600 font-medium">
+                      Provider payout is active. You will receive payouts after referral completion.
+                    </p>
+                  ) : (
+                    <div className="space-y-4 border border-gray-200 rounded-lg p-4 bg-gray-50">
+                      <p className="text-sm text-gray-700 font-medium">
+                        Activate provider payout (UPI)
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        Enter your UPI ID to receive referral payouts. Format: yourname@bank
+                      </p>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          UPI ID
+                        </label>
+                        <input
+                          type="text"
+                          value={providerUpiId}
+                          onChange={(e) => {
+                            setProviderUpiId(e.target.value);
+                            setProviderSetupError(null);
+                          }}
+                          placeholder="yourname@upi"
+                          className={`w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none ${
+                            providerUpiId.trim() && !isValidUpiId(providerUpiId)
+                              ? "border-red-500"
+                              : "border-gray-300"
+                          }`}
+                          disabled={providerSetupLoading}
+                        />
+                        {providerUpiId.trim() && !isValidUpiId(providerUpiId) && (
+                          <p className="mt-1 text-sm text-red-600">
+                            Enter a valid UPI ID (e.g. yourname@bank)
+                          </p>
+                        )}
+                      </div>
+                      {providerSetupError && (
+                        <p className="text-sm text-red-600">{providerSetupError}</p>
+                      )}
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          const price =
+                            form.price_per_referral === ""
+                              ? NaN
+                              : Number(form.price_per_referral);
+                          if (
+                            !Number.isFinite(price) ||
+                            price < 0 ||
+                            !isValidUpiId(providerUpiId)
+                          ) {
+                            setProviderSetupError(
+                              "Please enter a valid price and UPI ID (something@bank)."
+                            );
+                            return;
+                          }
+                          setProviderSetupLoading(true);
+                          setProviderSetupError(null);
+                          try {
+                            await updateMe({
+                              is_referral_provider: true,
+                              price_per_referral: price,
+                            });
+                            await api.setupProviderPayout({
+                              price_per_referral: price,
+                              upi_id: providerUpiId.trim(),
+                            });
+                            await refreshUser();
+                          } catch (err) {
+                            setProviderSetupError(
+                              err.message || "Provider setup failed"
+                            );
+                          } finally {
+                            setProviderSetupLoading(false);
+                          }
+                        }}
+                        disabled={
+                          providerSetupLoading ||
+                          !otpVerified ||
+                          !isValidUpiId(providerUpiId) ||
+                          form.price_per_referral === "" ||
+                          Number(form.price_per_referral) < 0
+                        }
+                        className="w-full sm:w-auto px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium disabled:opacity-60 disabled:cursor-not-allowed"
+                      >
+                        {providerSetupLoading
+                          ? "Activating…"
+                          : "Activate Provider"}
+                      </button>
+                    </div>
+                  )}
+                </>
               )}
 
               {error && <p className="text-sm text-red-600">{error}</p>}

@@ -166,7 +166,30 @@ app.post('/users/me/payout-setup', requireAuth, async (req, res) => {
       return res.status(400).json({ error: 'upi_id is required and must be a valid UPI ID (e.g. user@upi)' });
     }
 
-    const result = await setupPayoutForProvider(userId, upiId);
+    const result = await setupPayoutForProvider(userId, upiId, null);
+    return res.json(result);
+  } catch (error) {
+    return res.status(400).json({ error: error.message || 'Payout setup failed' });
+  }
+});
+
+// ---- Provider payout setup: price + UPI → Contact + Fund Account (idempotent). ----
+app.post('/api/providers/setup-payout', requireAuth, async (req, res) => {
+  try {
+    const userId = parseBigIntParam(req.auth.sub);
+    if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+
+    const { price_per_referral, upi_id } = req.body || {};
+    const upiId = typeof upi_id === 'string' ? upi_id.trim() : '';
+    if (!upiId || !upiId.includes('@')) {
+      return res.status(400).json({ error: 'upi_id is required and must be a valid UPI ID (e.g. yourname@upi)' });
+    }
+    const price = price_per_referral != null ? Number(price_per_referral) : NaN;
+    if (!Number.isFinite(price) || price < 0) {
+      return res.status(400).json({ error: 'price_per_referral must be a non-negative number' });
+    }
+
+    const result = await setupPayoutForProvider(userId, upiId, price);
     return res.json(result);
   } catch (error) {
     return res.status(400).json({ error: error.message || 'Payout setup failed' });

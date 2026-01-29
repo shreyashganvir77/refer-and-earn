@@ -32,6 +32,7 @@ async function getUserWithCompanyById(userId) {
     provider_rating: row.provider_rating,
     provider_rating_count: row.provider_rating_count,
     phone_number: row.phone_number,
+    payout_status: row.payout_status || null,
     created_at: row.created_at,
     updated_at: row.updated_at,
   };
