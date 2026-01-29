@@ -77,7 +77,7 @@ async function createContact(userId, user) {
     name: user.full_name || "Provider",
     email: user.email || "",
     contact: (user.phone_number || "").trim() || undefined,
-    type: "provider",
+    type: "employee",
     reference_id: referenceId,
   };
   // Remove undefined fields so Razorpay does not receive null/undefined
@@ -110,8 +110,9 @@ async function createContact(userId, user) {
  * Step 2: Create Razorpay Fund Account (VPA/UPI).
  * @see https://razorpay.com/docs/api/x/fund-accounts/create/vpa
  * @param upiId - UPI ID / VPA (e.g. user@upi). NOT logged.
+ * @param pricePerReferral - number, stored on success only.
  */
-async function createFundAccount(contactId, upiId, userId) {
+async function createFundAccount(contactId, upiId, userId, pricePerReferral) {
   const vpa = String(upiId).trim().toLowerCase();
   if (!vpa || !vpa.includes("@")) {
     throw new Error("Invalid UPI ID");
@@ -129,27 +130,48 @@ async function createFundAccount(contactId, upiId, userId) {
   }
 
   const pool = await getPool();
-  await pool
-    .request()
-    .input("user_id", sql.BigInt, userId)
-    .input("fund_account_id", sql.NVarChar(100), fundAccountId).query(`
-      UPDATE users
-      SET razorpay_fund_account_id = @fund_account_id,
-          payout_status = 'ACTIVE',
-          updated_at = SYSUTCDATETIME()
-      WHERE user_id = @user_id
-    `);
+  const req = pool.request();
+  req.input("user_id", sql.BigInt, userId);
+  req.input("fund_account_id", sql.NVarChar(100), fundAccountId);
+  req.input("price_per_referral", sql.Decimal(10, 2), pricePerReferral);
+  await req.query(`
+    UPDATE users
+    SET razorpay_fund_account_id = @fund_account_id,
+        payout_status = 'ACTIVE',
+        price_per_referral = @price_per_referral,
+        is_referral_provider = 1,
+        updated_at = SYSUTCDATETIME()
+    WHERE user_id = @user_id
+  `);
 
   return fundAccountId;
 }
 
 /**
- * Payout setup: Create Contact (if missing) and Fund Account (VPA).
- * - Provider must have is_referral_provider=1 and basic profile (full_name, email).
- * - Does not create duplicate contacts (uses existing razorpay_contact_id).
- * @param upiId - UPI/VPA; not stored, not logged.
+ * Validates UPI ID format: something@bank (basic pattern).
+ * Does not log or store the value.
  */
-async function setupPayoutForProvider(userId, upiId) {
+function isValidUpiId(value) {
+  if (typeof value !== "string") return false;
+  const v = value.trim();
+  if (!v || v.length > 256) return false;
+  const at = v.indexOf("@");
+  if (at <= 0 || at === v.length - 1) return false;
+  const local = v.slice(0, at);
+  const domain = v.slice(at + 1);
+  if (!/^[a-zA-Z0-9._-]+$/.test(local)) return false;
+  if (!/^[a-zA-Z0-9]+$/.test(domain)) return false;
+  return true;
+}
+
+/**
+ * Payout setup: Create Contact (if missing) and Fund Account (VPA).
+ * - User must be authenticated, is_referral_provider=1, razorpay_fund_account_id IS NULL.
+ * - Does not re-create contact or fund account if payout_status is ACTIVE.
+ * @param upiId - UPI/VPA; not stored, not logged.
+ * @param pricePerReferral - number (INR), required, >= 0.
+ */
+async function setupPayoutForProvider(userId, upiId, pricePerReferral) {
   const uid = typeof userId === "bigint" ? userId : BigInt(String(userId));
   const pool = await getPool();
 
@@ -166,14 +188,20 @@ async function setupPayoutForProvider(userId, upiId) {
     throw new Error("User not found");
   }
   if (!user.is_referral_provider) {
-    throw new Error("Only referral providers can set up payout");
+    throw new Error("Only referral providers can set up payout. Enable \"Become a Provider\" and save your profile first.");
   }
   if (!user.full_name || !user.email) {
     throw new Error("Complete your profile (name, email) before payout setup");
   }
-
-  if (user.razorpay_fund_account_id) {
-    return { status: "ACTIVE", message: "Payout already set up" };
+  if (user.razorpay_fund_account_id || (user.payout_status || "").toUpperCase() === "ACTIVE") {
+    return { success: true, message: "Provider profile activated successfully" };
+  }
+  if (!isValidUpiId(upiId)) {
+    throw new Error("Invalid UPI ID. Use format: yourname@bank");
+  }
+  const price = pricePerReferral == null ? NaN : Number(pricePerReferral);
+  if (!Number.isFinite(price) || price < 0) {
+    throw new Error("Invalid price per referral");
   }
 
   let contactId = user.razorpay_contact_id;
@@ -181,8 +209,8 @@ async function setupPayoutForProvider(userId, upiId) {
     contactId = await createContact(uid, user);
   }
 
-  await createFundAccount(contactId, upiId, uid);
-  return { status: "ACTIVE" };
+  await createFundAccount(contactId, upiId, uid, price);
+  return { success: true, message: "Provider profile activated successfully" };
 }
 
 /**
