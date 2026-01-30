@@ -18,6 +18,13 @@ const LoginFooter = () => {
           </button>
           <span className="text-gray-400">|</span>
           <button
+            onClick={() => navigate("/terms-and-conditions")}
+            className="hover:text-gray-700 hover:underline transition-colors focus:outline-none focus:underline"
+          >
+            Terms
+          </button>
+          <span className="text-gray-400">|</span>
+          <button
             onClick={() => navigate("/about#refund")}
             className="hover:text-gray-700 hover:underline transition-colors focus:outline-none focus:underline"
           >

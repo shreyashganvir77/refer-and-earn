@@ -20,6 +20,7 @@ import AboutUs from "./pages/AboutUs";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import ShippingReturnPolicy from "./pages/ShippingReturnPolicy";
 import Contact from "./pages/Contact";
+import TermsAndConditions from "./pages/TermsAndConditions";
 
 function App() {
   const { isAuthenticated, loading, isProfileComplete } = useAuth();
@@ -100,6 +101,7 @@ function App() {
         <Route path="/privacy" element={<PrivacyPolicy />} />
         <Route path="/shipping-return" element={<ShippingReturnPolicy />} />
         <Route path="/contact" element={<Contact />} />
+        <Route path="/terms-and-conditions" element={<TermsAndConditions />} />
       </Routes>
     </Router>
   );
