@@ -4,14 +4,14 @@
  */
 
 const PERSONAL_EMAIL_DOMAINS = [
-  'gmail.com',
-  'yahoo.com',
-  'hotmail.com',
-  'outlook.com',
-  'icloud.com',
-  'me.com',
-  'protonmail.com',
-  'proton.me',
+  //'gmail.com',
+  "yahoo.com",
+  "hotmail.com",
+  "outlook.com",
+  "icloud.com",
+  "me.com",
+  "protonmail.com",
+  "proton.me",
 ];
 
 /**
@@ -20,21 +20,22 @@ const PERSONAL_EMAIL_DOMAINS = [
  * @returns {{ valid: boolean; reason?: 'INVALID_EMAIL'|'PERSONAL_EMAIL_NOT_ALLOWED'|'INVALID_COMPANY_DOMAIN' }}
  */
 function validateCompanyEmail(email, allowedDomains) {
-  const domain = (email && typeof email === 'string')
-    ? email.split('@')[1]?.toLowerCase().trim()
-    : '';
+  const domain =
+    email && typeof email === "string"
+      ? email.split("@")[1]?.toLowerCase().trim()
+      : "";
 
   if (!domain) {
-    return { valid: false, reason: 'INVALID_EMAIL' };
+    return { valid: false, reason: "INVALID_EMAIL" };
   }
 
   if (PERSONAL_EMAIL_DOMAINS.includes(domain)) {
-    return { valid: false, reason: 'PERSONAL_EMAIL_NOT_ALLOWED' };
+    return { valid: false, reason: "PERSONAL_EMAIL_NOT_ALLOWED" };
   }
 
   const normalized = allowedDomains.map((d) => String(d).toLowerCase());
   if (!normalized.includes(domain)) {
-    return { valid: false, reason: 'INVALID_COMPANY_DOMAIN' };
+    return { valid: false, reason: "INVALID_COMPANY_DOMAIN" };
   }
 
   return { valid: true };

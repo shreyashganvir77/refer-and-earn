@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import LoginFooter from "../components/LoginFooter";
@@ -8,21 +8,45 @@ const Login = () => {
   const { loginWithGoogle } = useAuth();
   const [error, setError] = useState(null);
   const [submitting, setSubmitting] = useState(false);
+  const [googleReady, setGoogleReady] = useState(false);
+  const buttonRenderedRef = useRef(false);
 
-  console.log(process.env.REACT_APP_GOOGLE_CLIENT_ID);
   const googleClientId = useMemo(
     () => process.env.REACT_APP_GOOGLE_CLIENT_ID,
     [],
   );
 
+  // Wait for Google Identity Services script (async defer) to load
   useEffect(() => {
-    // Render Google button via Google Identity Services (GIS)
+    if (window.google?.accounts?.id) {
+      setGoogleReady(true);
+      return;
+    }
+    const maxAttempts = 50;
+    let attempts = 0;
+    const id = setInterval(() => {
+      attempts += 1;
+      if (window.google?.accounts?.id) {
+        setGoogleReady(true);
+        clearInterval(id);
+      } else if (attempts >= maxAttempts) {
+        clearInterval(id);
+      }
+    }, 200);
+    return () => clearInterval(id);
+  }, []);
+
+  // Initialize and render Google button once script is ready
+  useEffect(() => {
     if (!googleClientId) {
       setError("Missing REACT_APP_GOOGLE_CLIENT_ID");
       return;
     }
+    if (!googleReady) return;
+    if (buttonRenderedRef.current) return;
 
-    if (!window.google?.accounts?.id) return;
+    const el = document.getElementById("googleSignInDiv");
+    if (!el) return;
 
     window.google.accounts.id.initialize({
       client_id: googleClientId,
@@ -32,8 +56,6 @@ const Login = () => {
           setError(null);
           const idToken = response.credential;
           const data = await loginWithGoogle(idToken);
-
-          // If profile is incomplete, backend will still return user; routing decision is in App
           navigate("/");
           return data;
         } catch (e) {
@@ -44,17 +66,15 @@ const Login = () => {
       },
     });
 
-    window.google.accounts.id.renderButton(
-      document.getElementById("googleSignInDiv"),
-      {
-        theme: "outline",
-        size: "large",
-        width: 360,
-        text: "continue_with",
-        shape: "pill",
-      },
-    );
-  }, [googleClientId, loginWithGoogle, navigate]);
+    window.google.accounts.id.renderButton(el, {
+      theme: "outline",
+      size: "large",
+      width: 360,
+      text: "continue_with",
+      shape: "pill",
+    });
+    buttonRenderedRef.current = true;
+  }, [googleReady, googleClientId, loginWithGoogle, navigate]);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 pb-[60px]">
