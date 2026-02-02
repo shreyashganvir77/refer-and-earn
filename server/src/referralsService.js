@@ -1,7 +1,6 @@
 const { getPool, sql } = require('./db');
 const { parseBigIntParam, ALLOWED_REQUEST_STATUSES } = require('./utils');
 const { sendReferralRequestEmailToRequester, sendReferralRequestEmailToProvider } = require('./emailService');
-const { releasePaymentToProvider } = require('./payments');
 
 /**
  * Create a new referral request
@@ -312,16 +311,7 @@ async function completeReferral(requestId, providerUserId) {
       WHERE request_id = @request_id
     `);
 
-  // Release payment to provider (async, don't block response)
-  releasePaymentToProvider(requestId, providerUserId)
-    .then((result) => {
-      console.log('Payment released to provider:', result);
-    })
-    .catch((error) => {
-      console.error('Failed to release payment to provider:', error);
-      // Log error but don't fail the request
-    });
-
+  // Provider payout on completion is not implemented; referral is marked COMPLETED only.
   return { referral_request: updateResult.recordset[0] };
 }
 

@@ -24,6 +24,7 @@ const ProfileCompletion = () => {
   const [providerUpiId, setProviderUpiId] = useState("");
   const [providerSetupLoading, setProviderSetupLoading] = useState(false);
   const [providerSetupError, setProviderSetupError] = useState(null);
+  const [providerJustActivated, setProviderJustActivated] = useState(false);
 
   const [form, setForm] = useState({
     company_id: user?.company_id ?? "",
@@ -34,18 +35,25 @@ const ProfileCompletion = () => {
     price_per_referral: user?.price_per_referral ?? "",
   });
 
+  // Sync form and OTP state from user; skip sync during provider activation to prevent form reset
   useEffect(() => {
-    setForm({
-      company_id: user?.company_id ?? "",
-      role_designation: user?.role_designation ?? "",
-      years_experience: user?.years_experience ?? "",
-      is_referral_provider: Boolean(user?.is_referral_provider),
-      bio_description: user?.bio_description ?? "",
-      price_per_referral: user?.price_per_referral ?? "",
-    });
-    setOtpVerified(Boolean(user?.is_company_email_verified));
-    setCompanyEmail(user?.company_email ?? "");
-  }, [user]);
+    if (!user || providerJustActivated) return;
+    setForm((prev) => ({
+      company_id: user.company_id != null && user.company_id !== "" ? String(user.company_id) : prev.company_id,
+      role_designation: user.role_designation != null && user.role_designation !== "" ? user.role_designation : prev.role_designation,
+      years_experience: user.years_experience != null && user.years_experience !== "" ? user.years_experience : prev.years_experience,
+      is_referral_provider: user.is_referral_provider !== undefined ? Boolean(user.is_referral_provider) : prev.is_referral_provider,
+      bio_description: user.bio_description != null ? user.bio_description : prev.bio_description,
+      price_per_referral: user.price_per_referral != null && user.price_per_referral !== "" ? user.price_per_referral : prev.price_per_referral,
+    }));
+    if (user.is_company_email_verified === true) {
+      setOtpVerified(true);
+      if (user.company_email != null && user.company_email !== "") setCompanyEmail(user.company_email);
+    } else if (user.is_company_email_verified === false) {
+      setOtpVerified(false);
+      setCompanyEmail(user.company_email != null ? user.company_email : "");
+    }
+  }, [user, providerJustActivated]);
 
   useEffect(() => {
     let mounted = true;
@@ -93,10 +101,10 @@ const ProfileCompletion = () => {
   }, [form.company_id]);
 
   useEffect(() => {
-    if (!authLoading && user && isProfileComplete) {
+    if (!authLoading && user && isProfileComplete && !providerJustActivated) {
       navigate("/");
     }
-  }, [authLoading, user, isProfileComplete, navigate]);
+  }, [authLoading, user, isProfileComplete, navigate, providerJustActivated]);
 
   const companyEmailError = useMemo(() => {
     const email = (companyEmail || "").trim();
@@ -175,6 +183,7 @@ const ProfileCompletion = () => {
             ? null
             : Number(form.price_per_referral),
       });
+      setProviderJustActivated(false);
       navigate("/");
     } catch (e2) {
       setError(e2.message || "Failed to save profile");
@@ -415,9 +424,17 @@ const ProfileCompletion = () => {
                   </div>
 
                   {user?.payout_status === "ACTIVE" ? (
-                    <p className="text-sm text-green-600 font-medium">
-                      Provider payout is active. You will receive payouts after referral completion.
-                    </p>
+                    <div className="space-y-2 border border-green-200 rounded-lg p-4 bg-green-50">
+                      <p className="text-sm text-green-700 font-semibold flex items-center gap-2">
+                        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd"/>
+                        </svg>
+                        Provider payout activated successfully!
+                      </p>
+                      <p className="text-xs text-green-600">
+                        You will receive payouts after referral completion. Click "Save & Continue" below to finish.
+                      </p>
+                    </div>
                   ) : (
                     <div className="space-y-4 border border-gray-200 rounded-lg p-4 bg-gray-50">
                       <p className="text-sm text-gray-700 font-medium">
@@ -473,7 +490,9 @@ const ProfileCompletion = () => {
                           }
                           setProviderSetupLoading(true);
                           setProviderSetupError(null);
+                          setProviderJustActivated(true);
                           try {
+                            // Only save is_referral_provider and price to meet backend requirement
                             await updateMe({
                               is_referral_provider: true,
                               price_per_referral: price,
@@ -487,6 +506,7 @@ const ProfileCompletion = () => {
                             setProviderSetupError(
                               err.message || "Provider setup failed"
                             );
+                            setProviderJustActivated(false);
                           } finally {
                             setProviderSetupLoading(false);
                           }
