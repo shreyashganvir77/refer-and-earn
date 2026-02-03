@@ -1,5 +1,11 @@
-import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
-import { api } from '../services/api';
+import React, {
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
+import { api } from "../services/api";
 
 const AuthContext = createContext(null);
 
@@ -7,19 +13,19 @@ function isProfileComplete(user) {
   if (!user) return false;
   const hasCompany = user.company_id !== null && user.company_id !== undefined;
   const hasRole = Boolean(user.role_designation);
-  const hasExperience = user.years_experience !== null && user.years_experience !== undefined;
+  const hasExperience =
+    user.years_experience !== null && user.years_experience !== undefined;
 
   if (user.is_referral_provider) {
-    const hasPrice = user.price_per_referral !== null && user.price_per_referral !== undefined;
     const hasVerifiedCompanyEmail = Boolean(user.is_company_email_verified);
-    return hasCompany && hasRole && hasExperience && hasPrice && hasVerifiedCompanyEmail;
+    return hasCompany && hasRole && hasExperience && hasVerifiedCompanyEmail;
   }
 
   return hasCompany && hasRole && hasExperience;
 }
 
 export function AuthProvider({ children }) {
-  const [token, setToken] = useState(() => localStorage.getItem('token'));
+  const [token, setToken] = useState(() => localStorage.getItem("token"));
   const [user, setUser] = useState(null);
   const [company, setCompany] = useState(null);
   const [loading, setLoading] = useState(Boolean(token));
@@ -43,7 +49,7 @@ export function AuthProvider({ children }) {
       } catch {
         // Token invalid/expired
         if (!mounted) return;
-        localStorage.removeItem('token');
+        localStorage.removeItem("token");
         setToken(null);
         setUser(null);
         setCompany(null);
@@ -67,14 +73,14 @@ export function AuthProvider({ children }) {
       isProfileComplete: isProfileComplete(user),
       async loginWithGoogle(idToken) {
         const data = await api.authGoogle(idToken);
-        localStorage.setItem('token', data.token);
+        localStorage.setItem("token", data.token);
         setToken(data.token);
         setUser(data.user);
         setCompany(data.company);
         return data;
       },
       logout() {
-        localStorage.removeItem('token');
+        localStorage.removeItem("token");
         setToken(null);
         setUser(null);
         setCompany(null);
@@ -99,7 +105,6 @@ export function AuthProvider({ children }) {
 
 export function useAuth() {
   const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error('useAuth must be used within AuthProvider');
+  if (!ctx) throw new Error("useAuth must be used within AuthProvider");
   return ctx;
 }
-

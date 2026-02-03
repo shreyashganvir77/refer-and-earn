@@ -33,6 +33,7 @@ function toCompanyDto(row) {
     company_name: row.company_name,
     logo_url: row.logo_url,
     industry: row.industry,
+    referral_price: row.referral_price != null ? Number(row.referral_price) : 0,
     created_at: row.created_at,
   };
 }
@@ -47,7 +48,12 @@ function parseBigIntParam(value) {
   }
 }
 
-const ALLOWED_REQUEST_STATUSES = new Set(['PENDING', 'ACCEPTED', 'COMPLETED', 'REJECTED']);
+const ALLOWED_REQUEST_STATUSES = new Set([
+  "PENDING",
+  "ACCEPTED",
+  "COMPLETED",
+  "REJECTED",
+]);
 
 module.exports = {
   toUserDto,

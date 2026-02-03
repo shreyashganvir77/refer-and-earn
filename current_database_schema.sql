@@ -26,6 +26,38 @@ ALTER TABLE [dbo].[companies] ADD  CONSTRAINT [df_companies_created_at]  DEFAULT
 GO
 
 
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+CREATE TABLE [dbo].[company_domains](
+	[domain_id] [bigint] IDENTITY(1,1) NOT NULL,
+	[company_id] [bigint] NOT NULL,
+	[domain] [nvarchar](255) NOT NULL,
+	[is_active] [bit] NOT NULL,
+	[created_at] [datetime2](3) NOT NULL
+) ON [PRIMARY]
+GO
+ALTER TABLE [dbo].[company_domains] ADD  CONSTRAINT [pk_company_domains] PRIMARY KEY CLUSTERED 
+(
+	[domain_id] ASC
+)WITH (STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ONLINE = OFF, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
+GO
+CREATE NONCLUSTERED INDEX [ix_company_domains_company_id] ON [dbo].[company_domains]
+(
+	[company_id] ASC
+)WITH (STATISTICS_NORECOMPUTE = OFF, DROP_EXISTING = OFF, ONLINE = OFF, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
+GO
+ALTER TABLE [dbo].[company_domains] ADD  DEFAULT ((1)) FOR [is_active]
+GO
+ALTER TABLE [dbo].[company_domains] ADD  DEFAULT (sysutcdatetime()) FOR [created_at]
+GO
+ALTER TABLE [dbo].[company_domains]  WITH CHECK ADD  CONSTRAINT [fk_company_domains_company] FOREIGN KEY([company_id])
+REFERENCES [dbo].[companies] ([company_id])
+GO
+ALTER TABLE [dbo].[company_domains] CHECK CONSTRAINT [fk_company_domains_company]
+GO
+
 
 SET ANSI_NULLS ON
 GO
@@ -41,11 +73,11 @@ CREATE TABLE [dbo].[payments](
 	[razorpay_signature] [nvarchar](255) NULL,
 	[total_amount] [decimal](10, 2) NOT NULL,
 	[platform_fee] [decimal](10, 2) NOT NULL,
-	[provider_amount] [decimal](10, 2¯¸) NOT NULL,
+	[provider_amount] [decimal](10, 2) NOT NULL,
 	[status] [nvarchar](30) NOT NULL,
 	[created_at] [datetime2](3) NULL,
 	[updated_at] [datetime2](3) NULL
-) ON [PRIMARY]¯
+) ON [PRIMARY]
 GO
 ALTER TABLE [dbo].[payments] ADD PRIMARY KEY CLUSTERED 
 (
@@ -99,7 +131,6 @@ GO
 ALTER TABLE [dbo].[payments] CHECK CONSTRAINT [ck_payments_status]
 GO
 
-
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -144,6 +175,7 @@ ALTER TABLE [dbo].[provider_reviews]  WITH CHECK ADD  CONSTRAINT [ck_provider_re
 GO
 ALTER TABLE [dbo].[provider_reviews] CHECK CONSTRAINT [ck_provider_reviews_stars_range]
 GO
+
 
 SET ANSI_NULLS ON
 GO
@@ -218,6 +250,64 @@ SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
 GO
+CREATE TABLE [dbo].[support_tickets](
+	[ticket_id] [bigint] IDENTITY(1,1) NOT NULL,
+	[referral_request_id] [bigint] NOT NULL,
+	[raised_by_user_id] [bigint] NOT NULL,
+	[issue_type] [nvarchar](100) NOT NULL,
+	[description] [nvarchar](2000) NOT NULL,
+	[status] [nvarchar](30) NOT NULL,
+	[created_at] [datetime2](3) NOT NULL,
+	[updated_at] [datetime2](3) NOT NULL
+) ON [PRIMARY]
+GO
+ALTER TABLE [dbo].[support_tickets] ADD  CONSTRAINT [pk_support_tickets] PRIMARY KEY CLUSTERED 
+(
+	[ticket_id] ASC
+)WITH (STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ONLINE = OFF, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
+GO
+ALTER TABLE [dbo].[support_tickets] ADD  CONSTRAINT [uq_support_ticket_one_per_referral] UNIQUE NONCLUSTERED 
+(
+	[referral_request_id] ASC
+)WITH (STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ONLINE = OFF, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
+GO
+CREATE NONCLUSTERED INDEX [ix_support_tickets_referral] ON [dbo].[support_tickets]
+(
+	[referral_request_id] ASC
+)WITH (STATISTICS_NORECOMPUTE = OFF, DROP_EXISTING = OFF, ONLINE = OFF, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
+GO
+SET ANSI_PADDING ON
+GO
+CREATE NONCLUSTERED INDEX [ix_support_tickets_status] ON [dbo].[support_tickets]
+(
+	[status] ASC
+)WITH (STATISTICS_NORECOMPUTE = OFF, DROP_EXISTING = OFF, ONLINE = OFF, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
+GO
+ALTER TABLE [dbo].[support_tickets] ADD  CONSTRAINT [df_support_tickets_status]  DEFAULT ('OPEN') FOR [status]
+GO
+ALTER TABLE [dbo].[support_tickets] ADD  CONSTRAINT [df_support_tickets_created_at]  DEFAULT (sysutcdatetime()) FOR [created_at]
+GO
+ALTER TABLE [dbo].[support_tickets] ADD  CONSTRAINT [df_support_tickets_updated_at]  DEFAULT (sysutcdatetime()) FOR [updated_at]
+GO
+ALTER TABLE [dbo].[support_tickets]  WITH CHECK ADD  CONSTRAINT [fk_support_ticket_referral] FOREIGN KEY([referral_request_id])
+REFERENCES [dbo].[referral_requests] ([request_id])
+GO
+ALTER TABLE [dbo].[support_tickets] CHECK CONSTRAINT [fk_support_ticket_referral]
+GO
+ALTER TABLE [dbo].[support_tickets]  WITH CHECK ADD  CONSTRAINT [fk_support_ticket_user] FOREIGN KEY([raised_by_user_id])
+REFERENCES [dbo].[users] ([user_id])
+GO
+ALTER TABLE [dbo].[support_tickets] CHECK CONSTRAINT [fk_support_ticket_user]
+GO
+ALTER TABLE [dbo].[support_tickets]  WITH CHECK ADD  CONSTRAINT [ck_support_tickets_status] CHECK  (([status]='RESOLVED' OR [status]='OPEN'))
+GO
+ALTER TABLE [dbo].[support_tickets] CHECK CONSTRAINT [ck_support_tickets_status]
+GO
+
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
 CREATE TABLE [dbo].[users](
 	[user_id] [bigint] IDENTITY(1,1) NOT NULL,
 	[full_name] [nvarchar](200) NOT NULL,
@@ -233,7 +323,12 @@ CREATE TABLE [dbo].[users](
 	[price_per_referral] [decimal](10, 2) NULL,
 	[created_at] [datetime2](3) NOT NULL,
 	[updated_at] [datetime2](3) NOT NULL,
-	[picture_url] [nvarchar](500) NULL
+	[picture_url] [nvarchar](500) NULL,
+	[company_email] [nvarchar](320) NULL,
+	[is_company_email_verified] [bit] NOT NULL,
+	[razorpay_contact_id] [nvarchar](100) NULL,
+	[razorpay_fund_account_id] [nvarchar](100) NULL,
+	[payout_status] [nvarchar](30) NULL
 ) ON [PRIMARY]
 GO
 ALTER TABLE [dbo].[users] ADD  CONSTRAINT [pk_users] PRIMARY KEY CLUSTERED 
@@ -256,6 +351,8 @@ ALTER TABLE [dbo].[users] ADD  CONSTRAINT [df_users_created_at]  DEFAULT (sysutc
 GO
 ALTER TABLE [dbo].[users] ADD  CONSTRAINT [df_users_updated_at]  DEFAULT (sysutcdatetime()) FOR [updated_at]
 GO
+ALTER TABLE [dbo].[users] ADD  CONSTRAINT [df_users_company_email_verified]  DEFAULT ((0)) FOR [is_company_email_verified]
+GO
 ALTER TABLE [dbo].[users]  WITH CHECK ADD  CONSTRAINT [fk_users_company_id] FOREIGN KEY([company_id])
 REFERENCES [dbo].[companies] ([company_id])
 GO
@@ -273,4 +370,3 @@ ALTER TABLE [dbo].[users]  WITH CHECK ADD  CONSTRAINT [ck_users_years_experience
 GO
 ALTER TABLE [dbo].[users] CHECK CONSTRAINT [ck_users_years_experience_nonnegative]
 GO
-

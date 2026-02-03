@@ -1,5 +1,5 @@
-const { getPool, sql } = require('./db');
-const { parseBigIntParam, toCompanyDto, toUserDto } = require('./utils');
+const { getPool, sql } = require("./db");
+const { parseBigIntParam, toCompanyDto, toUserDto } = require("./utils");
 
 /**
  * Get allowed email domains for a company (from company_domains)
@@ -8,8 +8,7 @@ const { parseBigIntParam, toCompanyDto, toUserDto } = require('./utils');
  */
 async function getCompanyDomains(companyId) {
   const pool = await getPool();
-  const result = await pool.request()
-    .input('company_id', sql.BigInt, companyId)
+  const result = await pool.request().input("company_id", sql.BigInt, companyId)
     .query(`
       SELECT domain
       FROM company_domains
@@ -21,17 +20,44 @@ async function getCompanyDomains(companyId) {
 
 const DEFAULT_SEARCH_LIMIT = 15;
 
+/** SELECT list with referral_price (use after migration). Without it for backward compat. */
+const COMPANY_COLS_WITH_PRICE =
+  "company_id, company_name, logo_url, industry, referral_price, created_at";
+const COMPANY_COLS_NO_PRICE =
+  "company_id, company_name, logo_url, industry, created_at";
+
+function isReferralPriceColumnError(err) {
+  const msg = err && err.message ? String(err.message) : "";
+  return /referral_price|Invalid column name/i.test(msg);
+}
+
 /**
- * List all companies (used when no search)
+ * List all companies (used when no search). Works before and after referral_price migration.
  */
 async function listCompanies() {
   const pool = await getPool();
-  const result = await pool.request().query(`
-    SELECT company_id, company_name, logo_url, industry, created_at
-    FROM companies
-    ORDER BY company_name ASC
-  `);
-  return { companies: result.recordset.map(toCompanyDto) };
+  try {
+    const result = await pool.request().query(`
+      SELECT ${COMPANY_COLS_WITH_PRICE}
+      FROM companies
+      ORDER BY company_name ASC
+    `);
+    return { companies: result.recordset.map(toCompanyDto) };
+  } catch (err) {
+    if (isReferralPriceColumnError(err)) {
+      const result = await pool.request().query(`
+        SELECT ${COMPANY_COLS_NO_PRICE}
+        FROM companies
+        ORDER BY company_name ASC
+      `);
+      const rows = (result.recordset || []).map((r) => ({
+        ...r,
+        referral_price: 0,
+      }));
+      return { companies: rows.map(toCompanyDto) };
+    }
+    throw err;
+  }
 }
 
 /**
@@ -43,48 +69,107 @@ async function listCompanies() {
 async function searchCompanies(search, limit = DEFAULT_SEARCH_LIMIT) {
   const pool = await getPool();
   const cap = Math.min(Math.max(Number(limit) || 15, 1), 50);
-  const term = (search && typeof search === 'string') ? search.trim() : '';
+  const term = search && typeof search === "string" ? search.trim() : "";
 
   if (!term) {
-    const result = await pool.request()
-      .input('limit', sql.Int, cap)
-      .query(`
-        SELECT TOP (@limit) company_id, company_name, logo_url, industry, created_at
+    try {
+      const result = await pool.request().input("limit", sql.Int, cap).query(`
+        SELECT TOP (@limit) ${COMPANY_COLS_WITH_PRICE}
         FROM companies
         ORDER BY company_name ASC
       `);
-    return { companies: result.recordset.map(toCompanyDto) };
+      return { companies: result.recordset.map(toCompanyDto) };
+    } catch (err) {
+      if (isReferralPriceColumnError(err)) {
+        const result = await pool.request().input("limit", sql.Int, cap).query(`
+          SELECT TOP (@limit) ${COMPANY_COLS_NO_PRICE}
+          FROM companies
+          ORDER BY company_name ASC
+        `);
+        const rows = (result.recordset || []).map((r) => ({
+          ...r,
+          referral_price: 0,
+        }));
+        return { companies: rows.map(toCompanyDto) };
+      }
+      throw err;
+    }
   }
 
-  const pattern = `%${term.replace(/[%_[]/g, '[$&]')}%`;
-  const result = await pool.request()
-    .input('pattern', sql.NVarChar(500), pattern)
-    .input('limit', sql.Int, cap)
-    .query(`
-      SELECT TOP (@limit) company_id, company_name, logo_url, industry, created_at
-      FROM companies
-      WHERE company_name LIKE @pattern ESCAPE '[' OR industry LIKE @pattern ESCAPE '['
-      ORDER BY company_name ASC
-    `);
-  return { companies: result.recordset.map(toCompanyDto) };
+  const pattern = `%${term.replace(/[%_[]/g, "[$&]")}%`;
+  try {
+    const result = await pool
+      .request()
+      .input("pattern", sql.NVarChar(500), pattern)
+      .input("limit", sql.Int, cap).query(`
+        SELECT TOP (@limit) ${COMPANY_COLS_WITH_PRICE}
+        FROM companies
+        WHERE company_name LIKE @pattern ESCAPE '[' OR industry LIKE @pattern ESCAPE '['
+        ORDER BY company_name ASC
+      `);
+    return { companies: result.recordset.map(toCompanyDto) };
+  } catch (err) {
+    if (isReferralPriceColumnError(err)) {
+      const result = await pool
+        .request()
+        .input("pattern", sql.NVarChar(500), pattern)
+        .input("limit", sql.Int, cap).query(`
+          SELECT TOP (@limit) ${COMPANY_COLS_NO_PRICE}
+          FROM companies
+          WHERE company_name LIKE @pattern ESCAPE '[' OR industry LIKE @pattern ESCAPE '['
+          ORDER BY company_name ASC
+        `);
+      const rows = (result.recordset || []).map((r) => ({
+        ...r,
+        referral_price: 0,
+      }));
+      return { companies: rows.map(toCompanyDto) };
+    }
+    throw err;
+  }
 }
 
 /**
- * Get providers by company ID
+ * Get providers by company ID. Works before and after companies.referral_price migration.
  */
 async function getProvidersByCompany(companyId) {
   const pool = await getPool();
-  const result = await pool.request()
-    .input('company_id', sql.BigInt, companyId)
-    .query(`
-      SELECT u.*, c.company_id, c.company_name, c.logo_url, c.industry, c.created_at AS company_created_at
-      FROM users u
-      INNER JOIN companies c ON u.company_id = c.company_id
-      WHERE u.company_id = @company_id AND u.is_referral_provider = 1
-      ORDER BY u.provider_rating DESC, u.provider_rating_count DESC
-    `);
+  const withPrice = `
+    SELECT u.*, c.company_id, c.company_name, c.logo_url, c.industry, c.referral_price, c.created_at AS company_created_at
+    FROM users u
+    INNER JOIN companies c ON u.company_id = c.company_id
+    WHERE u.company_id = @company_id AND u.is_referral_provider = 1
+    ORDER BY u.provider_rating DESC, u.provider_rating_count DESC
+  `;
+  const noPrice = `
+    SELECT u.*, c.company_id, c.company_name, c.logo_url, c.industry, c.created_at AS company_created_at
+    FROM users u
+    INNER JOIN companies c ON u.company_id = c.company_id
+    WHERE u.company_id = @company_id AND u.is_referral_provider = 1
+    ORDER BY u.provider_rating DESC, u.provider_rating_count DESC
+  `;
+  let result;
+  try {
+    result = await pool
+      .request()
+      .input("company_id", sql.BigInt, companyId)
+      .query(withPrice);
+  } catch (err) {
+    if (isReferralPriceColumnError(err)) {
+      result = await pool
+        .request()
+        .input("company_id", sql.BigInt, companyId)
+        .query(noPrice);
+      (result.recordset || []).forEach((r) => {
+        r.referral_price = 0;
+      });
+    } else {
+      throw err;
+    }
+  }
 
-  const providers = result.recordset.map(row => {
+  const rows = Array.isArray(result.recordset) ? result.recordset : [];
+  const providers = rows.map((row) => {
     const user = {
       user_id: row.user_id,
       full_name: row.full_name,
@@ -106,6 +191,8 @@ async function getProvidersByCompany(companyId) {
       company_name: row.company_name,
       logo_url: row.logo_url,
       industry: row.industry,
+      referral_price:
+        row.referral_price != null ? Number(row.referral_price) : 0,
       created_at: row.company_created_at,
     };
     return {
@@ -117,9 +204,40 @@ async function getProvidersByCompany(companyId) {
   return { providers };
 }
 
+/**
+ * Update company referral_price (admin only). Affects future referrals only.
+ */
+async function updateCompanyReferralPrice(companyId, referralPrice) {
+  const pool = await getPool();
+  const cid = parseBigIntParam(companyId);
+  if (!cid) {
+    throw new Error("Invalid company_id");
+  }
+  const price = Number(referralPrice);
+  if (!Number.isFinite(price) || price < 0) {
+    throw new Error("referral_price must be a non-negative number");
+  }
+
+  const result = await pool
+    .request()
+    .input("company_id", sql.BigInt, cid)
+    .input("referral_price", sql.Decimal(10, 2), price).query(`
+      UPDATE companies
+      SET referral_price = @referral_price
+      WHERE company_id = @company_id
+    `);
+
+  if (result.rowsAffected[0] === 0) {
+    throw new Error("Company not found");
+  }
+
+  return { success: true, company_id: String(cid), referral_price: price };
+}
+
 module.exports = {
   getCompanyDomains,
   listCompanies,
   searchCompanies,
   getProvidersByCompany,
+  updateCompanyReferralPrice,
 };

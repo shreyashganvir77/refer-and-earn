@@ -99,7 +99,7 @@ const Login = () => {
                 </h2>
                 <p className="text-base text-gray-600">
                   A trusted platform where professionals help each other with
-                  referrals — securely and transparently.
+                  referrals securely and transparently.
                 </p>
               </section>
 
