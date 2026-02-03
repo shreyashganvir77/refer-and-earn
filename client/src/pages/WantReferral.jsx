@@ -37,15 +37,35 @@ const WantReferral = () => {
       setError(null);
       return;
     }
+    const rawId =
+      selectedCompany.company_id ??
+      selectedCompany.id ??
+      selectedCompany.companyId;
+    if (rawId == null || rawId === "") {
+      setProviders([]);
+      setError("Invalid company selection");
+      return;
+    }
+    const companyId = String(rawId).trim();
+    if (companyId === "" || companyId === "undefined" || companyId === "null") {
+      setProviders([]);
+      setError("Invalid company selection");
+      return;
+    }
     let mounted = true;
     setLoadingProviders(true);
     setError(null);
-    const companyId = selectedCompany.company_id ?? selectedCompany.id;
     api
       .providersByCompany(companyId)
       .then((data) => {
         if (!mounted) return;
-        setProviders(data.providers || []);
+        const list =
+          data != null && Array.isArray(data.providers)
+            ? data.providers
+            : Array.isArray(data)
+            ? data
+            : [];
+        setProviders(list);
       })
       .catch((e) => {
         if (!mounted) return;
@@ -124,15 +144,13 @@ const WantReferral = () => {
     }
 
     const providerUserId = selectedProvider?.user_id;
-    const price = selectedProvider?.price_per_referral;
 
     if (!providerUserId) return;
 
     try {
-      // Create referral request
+      // Create referral request (price set by backend from company.referral_price)
       const referralResponse = await api.createReferral({
         provider_user_id: providerUserId,
-        price_agreed: price ?? 0,
         job_id: formData.job_id.trim(),
         job_title: formData.job_title.trim(),
         resume_link: formData.resume_link.trim(),
@@ -173,7 +191,7 @@ const WantReferral = () => {
               await api.verifyPayment(
                 response.razorpay_order_id,
                 response.razorpay_payment_id,
-                response.razorpay_signature,
+                response.razorpay_signature
               );
               alert("Payment successful! Your referral request is now active.");
               navigate("/my-referrals");
@@ -203,7 +221,7 @@ const WantReferral = () => {
         const razorpay = new window.Razorpay(options);
         razorpay.on("payment.failed", (response) => {
           alert(
-            `Payment failed: ${response.error.description || "Unknown error"}`,
+            `Payment failed: ${response.error.description || "Unknown error"}`
           );
         });
         razorpay.open();
@@ -213,7 +231,7 @@ const WantReferral = () => {
           paymentError.message ||
           "Failed to initialize payment";
         alert(
-          `Referral created but payment failed: ${errorMsg}. You can pay later from My Referrals.`,
+          `Referral created but payment failed: ${errorMsg}. You can pay later from My Referrals.`
         );
         navigate("/my-referrals");
       }
@@ -338,9 +356,9 @@ const WantReferral = () => {
                           rating:
                             provider.provider_rating ?? provider.rating ?? 0,
                           price:
-                            provider.price_per_referral ?? provider.price ?? 0,
-                          price_per_referral:
-                            provider.price_per_referral ?? provider.price ?? 0,
+                            provider.company?.referral_price ??
+                            selectedCompany?.referral_price ??
+                            0,
                           description:
                             provider.bio_description ??
                             provider.description ??
@@ -386,9 +404,25 @@ const WantReferral = () => {
             <h3 className="text-xl font-bold text-gray-900 mb-2">
               Request Referral
             </h3>
-            <p className="text-sm text-gray-600 mb-6">
+            <p className="text-sm text-gray-600 mb-4">
               Please fill in all the required information to request a referral.
             </p>
+
+            <div className="mb-6 p-4 rounded-lg bg-gray-50 border border-gray-200">
+              <p className="text-sm font-medium text-gray-700">
+                Referral price for{" "}
+                {selectedCompany?.company_name ?? "this company"}:{" "}
+                <span className="text-indigo-600 font-semibold">
+                  ₹
+                  {selectedCompany?.referral_price ??
+                    providers[0]?.company?.referral_price ??
+                    0}
+                </span>
+              </p>
+              <p className="text-xs text-gray-500 mt-1">
+                Pricing is set by the platform for this company.
+              </p>
+            </div>
 
             <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-2">
               {/* Job ID */}
@@ -528,8 +562,8 @@ const WantReferral = () => {
                     formErrors.referral_summary
                       ? "border-red-300 focus:ring-red-500"
                       : wordCount < 150 || wordCount > 300
-                        ? "border-yellow-300 focus:ring-yellow-500"
-                        : "border-gray-300 focus:ring-indigo-500"
+                      ? "border-yellow-300 focus:ring-yellow-500"
+                      : "border-gray-300 focus:ring-indigo-500"
                   }`}
                 />
                 <div className="mt-1 flex items-center justify-between">
@@ -540,10 +574,14 @@ const WantReferral = () => {
                   ) : (
                     <p className="text-xs text-gray-500">
                       {wordCount < 150
-                        ? `Minimum 150 words required (${150 - wordCount} more needed)`
+                        ? `Minimum 150 words required (${
+                            150 - wordCount
+                          } more needed)`
                         : wordCount > 300
-                          ? `Maximum 300 words allowed (${wordCount - 300} over limit)`
-                          : "Word count is valid"}
+                        ? `Maximum 300 words allowed (${
+                            wordCount - 300
+                          } over limit)`
+                        : "Word count is valid"}
                     </p>
                   )}
                   <span

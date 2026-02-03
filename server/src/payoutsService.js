@@ -16,7 +16,7 @@ function razorpayXPost(path, body, extraHeaders = {}) {
   const keySecret = process.env.RAZORPAY_KEY_SECRET;
   if (!keyId || !keySecret) {
     throw new Error(
-      "RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET are required for payouts",
+      "RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET are required for payouts"
     );
   }
 
@@ -82,7 +82,7 @@ async function createContact(userId, user) {
   };
   // Remove undefined fields so Razorpay does not receive null/undefined
   Object.keys(payload).forEach(
-    (k) => payload[k] === undefined && delete payload[k],
+    (k) => payload[k] === undefined && delete payload[k]
   );
 
   const res = await razorpayXPost("/v1/contacts", payload);
@@ -188,18 +188,26 @@ async function setupPayoutForProvider(userId, upiId, pricePerReferral) {
     throw new Error("User not found");
   }
   if (!user.is_referral_provider) {
-    throw new Error("Only referral providers can set up payout. Enable \"Become a Provider\" and save your profile first.");
+    throw new Error(
+      'Only referral providers can set up payout. Enable "Become a Provider" and save your profile first.'
+    );
   }
   if (!user.full_name || !user.email) {
     throw new Error("Complete your profile (name, email) before payout setup");
   }
-  if (user.razorpay_fund_account_id || (user.payout_status || "").toUpperCase() === "ACTIVE") {
-    return { success: true, message: "Provider profile activated successfully" };
+  if (
+    user.razorpay_fund_account_id ||
+    (user.payout_status || "").toUpperCase() === "ACTIVE"
+  ) {
+    return {
+      success: true,
+      message: "Provider profile activated successfully",
+    };
   }
   if (!isValidUpiId(upiId)) {
     throw new Error("Invalid UPI ID. Use format: yourname@bank");
   }
-  const price = pricePerReferral == null ? NaN : Number(pricePerReferral);
+  const price = pricePerReferral == null ? 0 : Number(pricePerReferral);
   if (!Number.isFinite(price) || price < 0) {
     throw new Error("Invalid price per referral");
   }
@@ -251,7 +259,7 @@ async function releasePayoutForReferral(referralRequestId) {
   const open = await hasOpenTicketForReferral(reqId);
   if (open) {
     throw new Error(
-      "Cannot release payout: OPEN support ticket for this referral",
+      "Cannot release payout: OPEN support ticket for this referral"
     );
   }
 
@@ -287,7 +295,7 @@ async function releasePayoutForReferral(referralRequestId) {
   }
   if (!prov.razorpay_fund_account_id) {
     throw new Error(
-      "Provider has not completed payout setup (Fund Account missing)",
+      "Provider has not completed payout setup (Fund Account missing)"
     );
   }
 
@@ -323,7 +331,7 @@ async function releasePayoutForReferral(referralRequestId) {
     console.error(
       "Razorpay payout create failed for referral",
       String(reqId),
-      err.message,
+      err.message
     );
     throw new Error("Failed to create payout: " + err.message);
   }

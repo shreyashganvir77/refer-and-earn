@@ -7,7 +7,13 @@ import { isValidUpiId } from "../utils/upiValidation";
 
 const ProfileCompletion = () => {
   const navigate = useNavigate();
-  const { user, updateMe, refreshUser, isProfileComplete, loading: authLoading } = useAuth();
+  const {
+    user,
+    updateMe,
+    refreshUser,
+    isProfileComplete,
+    loading: authLoading,
+  } = useAuth();
   const [companies, setCompanies] = useState([]);
   const [companyDomains, setCompanyDomains] = useState([]);
   const [loadingDomains, setLoadingDomains] = useState(false);
@@ -32,23 +38,37 @@ const ProfileCompletion = () => {
     years_experience: user?.years_experience ?? "",
     is_referral_provider: Boolean(user?.is_referral_provider),
     bio_description: user?.bio_description ?? "",
-    price_per_referral: user?.price_per_referral ?? "",
   });
 
   // Sync form and OTP state from user; skip sync during provider activation to prevent form reset
   useEffect(() => {
     if (!user || providerJustActivated) return;
     setForm((prev) => ({
-      company_id: user.company_id != null && user.company_id !== "" ? String(user.company_id) : prev.company_id,
-      role_designation: user.role_designation != null && user.role_designation !== "" ? user.role_designation : prev.role_designation,
-      years_experience: user.years_experience != null && user.years_experience !== "" ? user.years_experience : prev.years_experience,
-      is_referral_provider: user.is_referral_provider !== undefined ? Boolean(user.is_referral_provider) : prev.is_referral_provider,
-      bio_description: user.bio_description != null ? user.bio_description : prev.bio_description,
-      price_per_referral: user.price_per_referral != null && user.price_per_referral !== "" ? user.price_per_referral : prev.price_per_referral,
+      company_id:
+        user.company_id != null && user.company_id !== ""
+          ? String(user.company_id)
+          : prev.company_id,
+      role_designation:
+        user.role_designation != null && user.role_designation !== ""
+          ? user.role_designation
+          : prev.role_designation,
+      years_experience:
+        user.years_experience != null && user.years_experience !== ""
+          ? user.years_experience
+          : prev.years_experience,
+      is_referral_provider:
+        user.is_referral_provider !== undefined
+          ? Boolean(user.is_referral_provider)
+          : prev.is_referral_provider,
+      bio_description:
+        user.bio_description != null
+          ? user.bio_description
+          : prev.bio_description,
     }));
     if (user.is_company_email_verified === true) {
       setOtpVerified(true);
-      if (user.company_email != null && user.company_email !== "") setCompanyEmail(user.company_email);
+      if (user.company_email != null && user.company_email !== "")
+        setCompanyEmail(user.company_email);
     } else if (user.is_company_email_verified === false) {
       setOtpVerified(false);
       setCompanyEmail(user.company_email != null ? user.company_email : "");
@@ -123,12 +143,12 @@ const ProfileCompletion = () => {
 
   const canSendOtp = Boolean(
     form.company_id &&
-    (companyEmail || "").trim() &&
-    !companyEmailError &&
-    !loadingDomains &&
-    companyDomains.length > 0 &&
-    !otpSending &&
-    !otpVerified,
+      (companyEmail || "").trim() &&
+      !companyEmailError &&
+      !loadingDomains &&
+      companyDomains.length > 0 &&
+      !otpSending &&
+      !otpVerified
   );
 
   const onChange = (e) => {
@@ -164,7 +184,7 @@ const ProfileCompletion = () => {
     e.preventDefault();
     if (form.is_referral_provider && !otpVerified) {
       setError(
-        "Please verify your official company email via OTP before enabling referrals.",
+        "Please verify your official company email via OTP before enabling referrals."
       );
       return;
     }
@@ -178,10 +198,6 @@ const ProfileCompletion = () => {
           form.years_experience === "" ? null : Number(form.years_experience),
         is_referral_provider: Boolean(form.is_referral_provider),
         bio_description: form.bio_description || null,
-        price_per_referral:
-          form.price_per_referral === ""
-            ? null
-            : Number(form.price_per_referral),
       });
       setProviderJustActivated(false);
       navigate("/");
@@ -323,7 +339,7 @@ const ProfileCompletion = () => {
                           setOtpSending(true);
                           await api.startReferralOtp(
                             companyEmail.trim(),
-                            form.company_id,
+                            form.company_id
                           );
                           setOtpSent(true);
                         } catch (err) {
@@ -338,8 +354,8 @@ const ProfileCompletion = () => {
                       {otpSending
                         ? "Sending OTP…"
                         : otpSent
-                          ? "Resend OTP"
-                          : "Send OTP"}
+                        ? "Resend OTP"
+                        : "Send OTP"}
                     </button>
                     {otpVerified && (
                       <span className="text-sm text-green-600 font-medium">
@@ -362,7 +378,7 @@ const ProfileCompletion = () => {
                           setOtpError(null);
                           if (!otpCode) {
                             setOtpError(
-                              "Please enter the OTP from your email.",
+                              "Please enter the OTP from your email."
                             );
                             return;
                           }
@@ -372,7 +388,7 @@ const ProfileCompletion = () => {
                             setOtpVerified(true);
                           } catch (err) {
                             setOtpError(
-                              err.message || "OTP verification failed",
+                              err.message || "OTP verification failed"
                             );
                           } finally {
                             setOtpVerifying(false);
@@ -407,32 +423,35 @@ const ProfileCompletion = () => {
 
               {form.is_referral_provider && (
                 <>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Price per referral (INR)
-                    </label>
-                    <input
-                      name="price_per_referral"
-                      type="number"
-                      min="0"
-                      value={form.price_per_referral}
-                      onChange={onChange}
-                      className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
-                      placeholder="e.g. 500"
-                      required
-                    />
+                  <div className="rounded-lg p-4 bg-gray-50 border border-gray-200">
+                    <p className="text-sm text-gray-700 font-medium mb-1">
+                      Referral pricing
+                    </p>
+                    <p className="text-sm text-gray-600">
+                      Pricing is set by the platform for this company. You
+                      cannot edit referral price.
+                    </p>
                   </div>
 
                   {user?.payout_status === "ACTIVE" ? (
                     <div className="space-y-2 border border-green-200 rounded-lg p-4 bg-green-50">
                       <p className="text-sm text-green-700 font-semibold flex items-center gap-2">
-                        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd"/>
+                        <svg
+                          className="w-5 h-5"
+                          fill="currentColor"
+                          viewBox="0 0 20 20"
+                        >
+                          <path
+                            fillRule="evenodd"
+                            d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                            clipRule="evenodd"
+                          />
                         </svg>
                         Provider payout activated successfully!
                       </p>
                       <p className="text-xs text-green-600">
-                        You will receive payouts after referral completion. Click "Save & Continue" below to finish.
+                        You will receive payouts after referral completion.
+                        Click "Save & Continue" below to finish.
                       </p>
                     </div>
                   ) : (
@@ -441,7 +460,8 @@ const ProfileCompletion = () => {
                         Activate provider payout (UPI)
                       </p>
                       <p className="text-xs text-gray-500">
-                        Enter your UPI ID to receive referral payouts. Format: yourname@bank
+                        Enter your UPI ID to receive referral payouts. Format:
+                        yourname@bank
                       </p>
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -462,29 +482,28 @@ const ProfileCompletion = () => {
                           }`}
                           disabled={providerSetupLoading}
                         />
-                        {providerUpiId.trim() && !isValidUpiId(providerUpiId) && (
-                          <p className="mt-1 text-sm text-red-600">
-                            Enter a valid UPI ID (e.g. yourname@bank)
-                          </p>
-                        )}
+                        {providerUpiId.trim() &&
+                          !isValidUpiId(providerUpiId) && (
+                            <p className="mt-1 text-sm text-red-600">
+                              Enter a valid UPI ID (e.g. yourname@bank)
+                            </p>
+                          )}
                       </div>
                       {providerSetupError && (
-                        <p className="text-sm text-red-600">{providerSetupError}</p>
+                        <p className="text-sm text-red-600">
+                          {providerSetupError}
+                        </p>
                       )}
                       <button
                         type="button"
                         onClick={async () => {
-                          const price =
-                            form.price_per_referral === ""
-                              ? NaN
-                              : Number(form.price_per_referral);
-                          if (
-                            !Number.isFinite(price) ||
-                            price < 0 ||
-                            !isValidUpiId(providerUpiId)
-                          ) {
+                          // const price =
+                          //   form.price_per_referral === ""
+                          //     ? NaN
+                          //     : Number(form.price_per_referral);
+                          if (!isValidUpiId(providerUpiId)) {
                             setProviderSetupError(
-                              "Please enter a valid price and UPI ID (something@bank)."
+                              "Please enter a valid UPI ID (something@bank)."
                             );
                             return;
                           }
@@ -492,13 +511,9 @@ const ProfileCompletion = () => {
                           setProviderSetupError(null);
                           setProviderJustActivated(true);
                           try {
-                            // Only save is_referral_provider and price to meet backend requirement
-                            await updateMe({
-                              is_referral_provider: true,
-                              price_per_referral: price,
-                            });
+                            await updateMe({ is_referral_provider: true });
                             await api.setupProviderPayout({
-                              price_per_referral: price,
+                              price_per_referral: 0,
                               upi_id: providerUpiId.trim(),
                             });
                             await refreshUser();
@@ -514,9 +529,7 @@ const ProfileCompletion = () => {
                         disabled={
                           providerSetupLoading ||
                           !otpVerified ||
-                          !isValidUpiId(providerUpiId) ||
-                          form.price_per_referral === "" ||
-                          Number(form.price_per_referral) < 0
+                          !isValidUpiId(providerUpiId)
                         }
                         className="w-full sm:w-auto px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium disabled:opacity-60 disabled:cursor-not-allowed"
                       >
