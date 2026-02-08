@@ -126,6 +126,13 @@ const ProfileCompletion = () => {
     }
   }, [authLoading, user, isProfileComplete, navigate, providerJustActivated]);
 
+  const selectedCompany = useMemo(
+    () =>
+      companies.find((c) => String(c.company_id) === String(form.company_id)),
+    [companies, form.company_id]
+  );
+  const referralPrice = selectedCompany?.referral_price ?? 0;
+
   const companyEmailError = useMemo(() => {
     const email = (companyEmail || "").trim();
     if (!email) return null;
@@ -427,10 +434,15 @@ const ProfileCompletion = () => {
                     <p className="text-sm text-gray-700 font-medium mb-1">
                       Referral pricing
                     </p>
-                    <p className="text-sm text-gray-600">
+                    <p className="text-sm text-gray-600 mb-1">
                       Pricing is set by the platform for this company. You
                       cannot edit referral price.
                     </p>
+                    {form.company_id && (
+                      <p className="text-sm font-semibold text-indigo-600">
+                        You will earn ₹{referralPrice} per referral
+                      </p>
+                    )}
                   </div>
 
                   {user?.payout_status === "ACTIVE" ? (
