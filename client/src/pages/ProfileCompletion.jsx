@@ -497,10 +497,6 @@ const ProfileCompletion = () => {
                       <button
                         type="button"
                         onClick={async () => {
-                          // const price =
-                          //   form.price_per_referral === ""
-                          //     ? NaN
-                          //     : Number(form.price_per_referral);
                           if (!isValidUpiId(providerUpiId)) {
                             setProviderSetupError(
                               "Please enter a valid UPI ID (something@bank)."
