@@ -66,7 +66,7 @@ app.use((req, _res, next) => {
   }
   next();
 });
-const COOKIE_MAX_AGE = 7 * 24 * 60 * 60 * 1000; // 7 days, match JWT expiry
+const COOKIE_MAX_AGE = 8 * 60 * 60 * 1000; // 8 hours, match JWT expiry
 const isProduction = process.env.NODE_ENV === "production";
 
 // SameSite=None required when frontend and backend are on different origins (e.g. app.vercel.app vs api.railway.app)
