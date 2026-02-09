@@ -4,7 +4,7 @@
  */
 
 const PERSONAL_EMAIL_DOMAINS = [
-  //'gmail.com',
+  "gmail.com",
   "yahoo.com",
   "hotmail.com",
   "outlook.com",

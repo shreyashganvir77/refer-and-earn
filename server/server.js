@@ -42,6 +42,7 @@ const {
   verifyWebhookSignature,
   handleWebhookEvent,
 } = require("./src/payments");
+const { sendContactFormEmail } = require("./src/emailService");
 
 const app = express();
 const PORT = process.env.PORT || 8000;
@@ -66,7 +67,7 @@ app.use((req, _res, next) => {
   }
   next();
 });
-const COOKIE_MAX_AGE = 7 * 24 * 60 * 60 * 1000; // 7 days, match JWT expiry
+const COOKIE_MAX_AGE = 8 * 60 * 60 * 1000; // 8 hours, match JWT expiry
 const isProduction = process.env.NODE_ENV === "production";
 
 // SameSite=None required when frontend and backend are on different origins (e.g. app.vercel.app vs api.railway.app)
@@ -137,6 +138,30 @@ app.post("/auth/set-cookie", (req, res) => {
     return res.json({ success: true });
   }
   return res.status(400).json({ error: "Token required" });
+});
+
+// ---- Contact form (public, no auth) ----
+app.post("/api/contact", async (req, res) => {
+  try {
+    const { name, email, subject, message } = req.body || {};
+    const n = typeof name === "string" ? name.trim() : "";
+    const e = typeof email === "string" ? email.trim() : "";
+    const s = typeof subject === "string" ? subject.trim() : "";
+    const m = typeof message === "string" ? message.trim() : "";
+    if (!n || !e || !s || !m) {
+      return res
+        .status(400)
+        .json({ error: "Name, email, subject, and message are required" });
+    }
+    await sendContactFormEmail({ name: n, email: e, subject: s, message: m });
+    return res.json({ success: true });
+  } catch (err) {
+    console.error("Contact form error:", err);
+    const status = err.message?.includes("not configured") ? 503 : 500;
+    return res
+      .status(status)
+      .json({ error: err.message || "Failed to send message" });
+  }
 });
 
 app.get("/auth/me", requireAuth, async (req, res) => {
