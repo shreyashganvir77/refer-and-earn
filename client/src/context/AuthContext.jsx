@@ -25,32 +25,21 @@ function isProfileComplete(user) {
 }
 
 export function AuthProvider({ children }) {
-  const [token, setToken] = useState(() => localStorage.getItem("token"));
   const [user, setUser] = useState(null);
   const [company, setCompany] = useState(null);
-  const [loading, setLoading] = useState(Boolean(token));
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let mounted = true;
     async function hydrate() {
-      if (!token) {
-        setUser(null);
-        setCompany(null);
-        setLoading(false);
-        return;
-      }
-
-      setLoading(true);
       try {
         const data = await api.me();
         if (!mounted) return;
         setUser(data.user);
         setCompany(data.company);
       } catch {
-        // Token invalid/expired
+        // No cookie or token invalid/expired
         if (!mounted) return;
-        localStorage.removeItem("token");
-        setToken(null);
         setUser(null);
         setCompany(null);
       } finally {
@@ -61,27 +50,27 @@ export function AuthProvider({ children }) {
     return () => {
       mounted = false;
     };
-  }, [token]);
+  }, []);
 
   const value = useMemo(() => {
     return {
-      token,
       user,
       company,
       loading,
-      isAuthenticated: Boolean(token),
+      isAuthenticated: Boolean(user),
       isProfileComplete: isProfileComplete(user),
       async loginWithGoogle(idToken) {
         const data = await api.authGoogle(idToken);
-        localStorage.setItem("token", data.token);
-        setToken(data.token);
         setUser(data.user);
         setCompany(data.company);
         return data;
       },
-      logout() {
-        localStorage.removeItem("token");
-        setToken(null);
+      async logout() {
+        try {
+          await api.authLogout();
+        } catch {
+          // Ignore errors; clear state anyway
+        }
         setUser(null);
         setCompany(null);
       },
@@ -98,7 +87,7 @@ export function AuthProvider({ children }) {
         return data;
       },
     };
-  }, [token, user, company, loading]);
+  }, [user, company, loading]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

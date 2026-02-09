@@ -1,18 +1,20 @@
-import React, { useEffect } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import React, { useEffect } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { api } from "../services/api";
 
 const AuthCallback = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
   useEffect(() => {
-    const token = searchParams.get('token');
-    
+    const token = searchParams.get("token");
     if (token) {
-      localStorage.setItem('token', token);
-      navigate('/');
+      api
+        .setAuthCookie(token)
+        .then(() => navigate("/"))
+        .catch(() => navigate("/login"));
     } else {
-      navigate('/login');
+      navigate("/login");
     }
   }, [searchParams, navigate]);
 
