@@ -69,11 +69,13 @@ app.use((req, _res, next) => {
 const COOKIE_MAX_AGE = 7 * 24 * 60 * 60 * 1000; // 7 days, match JWT expiry
 const isProduction = process.env.NODE_ENV === "production";
 
+// SameSite=None required when frontend and backend are on different origins (e.g. app.vercel.app vs api.railway.app)
+// SameSite=None requires Secure=true (HTTPS)
 function setAuthCookie(res, token) {
   res.cookie(COOKIE_NAME, token, {
     httpOnly: true,
     secure: isProduction,
-    sameSite: isProduction ? "strict" : "lax",
+    sameSite: isProduction ? "none" : "lax",
     maxAge: COOKIE_MAX_AGE,
     path: "/",
   });
