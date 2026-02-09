@@ -1,5 +1,6 @@
 const express = require("express");
 const cors = require("cors");
+const cookieParser = require("cookie-parser");
 require("dotenv").config();
 
 const { requireAuth, requireAdmin, signSessionJwt } = require("./src/auth");
@@ -54,13 +55,50 @@ app.use(
   })
 );
 app.use(express.json());
+app.use(cookieParser());
+
+// Prefer HttpOnly cookie token; inject into Authorization for requireAuth
+const COOKIE_NAME = "auth_token";
+app.use((req, _res, next) => {
+  const token = req.cookies?.[COOKIE_NAME];
+  if (token && !req.headers.authorization) {
+    req.headers.authorization = `Bearer ${token}`;
+  }
+  next();
+});
+const COOKIE_MAX_AGE = 7 * 24 * 60 * 60 * 1000; // 7 days, match JWT expiry
+const isProduction = process.env.NODE_ENV === "production";
+
+function setAuthCookie(res, token) {
+  res.cookie(COOKIE_NAME, token, {
+    httpOnly: true,
+    secure: isProduction,
+    sameSite: isProduction ? "strict" : "lax",
+    maxAge: COOKIE_MAX_AGE,
+    path: "/",
+  });
+}
+
+function clearAuthCookie(res) {
+  res.clearCookie(COOKIE_NAME, { path: "/" });
+}
+
+// Prefer HttpOnly cookie over Authorization header for requireAuth
+app.use((req, _res, next) => {
+  const token = req.cookies?.[COOKIE_NAME];
+  if (token && !req.headers.authorization) {
+    req.headers.authorization = `Bearer ${token}`;
+  }
+  next();
+});
 
 // ---- Auth APIs (Google OAuth only) ----
 app.post("/auth/google", async (req, res) => {
   try {
     const { idToken } = req.body || {};
     const result = await handleGoogleAuth(idToken);
-    return res.json(result);
+    setAuthCookie(res, result.token);
+    return res.json({ user: result.user, company: result.company });
   } catch (e) {
     const status = e.statusCode || 500;
     return res.status(status).json({ error: e.message || "Auth failed" });
@@ -71,11 +109,32 @@ app.post("/api/auth/google", async (req, res) => {
   try {
     const { idToken } = req.body || {};
     const result = await handleGoogleAuth(idToken);
-    return res.json(result);
+    setAuthCookie(res, result.token);
+    return res.json({ user: result.user, company: result.company });
   } catch (e) {
     const status = e.statusCode || 500;
     return res.status(status).json({ error: e.message || "Auth failed" });
   }
+});
+
+app.post("/auth/logout", (_req, res) => {
+  clearAuthCookie(res);
+  return res.json({ success: true });
+});
+
+app.post("/api/auth/logout", (_req, res) => {
+  clearAuthCookie(res);
+  return res.json({ success: true });
+});
+
+// Legacy: set cookie from token (e.g. AuthCallback with token in URL)
+app.post("/auth/set-cookie", (req, res) => {
+  const token = req.body?.token;
+  if (token && typeof token === "string") {
+    setAuthCookie(res, token.trim());
+    return res.json({ success: true });
+  }
+  return res.status(400).json({ error: "Token required" });
 });
 
 app.get("/auth/me", requireAuth, async (req, res) => {
