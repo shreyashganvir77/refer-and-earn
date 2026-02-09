@@ -153,10 +153,10 @@ const AboutUs = () => {
                   days to the original payment method. For any refund requests
                   or disputes, please contact our support team at{" "}
                   <a
-                    href="mailto:referandearn@gmail.com"
+                    href="mailto:referandearn88@gmail.com"
                     className="text-indigo-600 hover:underline"
                   >
-                    support@referandearn.com
+                    referandearn88@gmail.com
                   </a>
                   .
                 </p>
@@ -187,10 +187,10 @@ const AboutUs = () => {
               <p>
                 <strong>Email:</strong>{" "}
                 <a
-                  href="mailto:support@referandearn.com"
+                  href="mailto:referandearn88@gmail.com"
                   className="text-indigo-600 hover:underline"
                 >
-                  support@referandearn.com
+                  referandearn88@gmail.com
                 </a>
               </p>
               <p>

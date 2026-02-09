@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { api } from "../services/api";
 
 const Contact = () => {
   const navigate = useNavigate();
@@ -10,23 +11,33 @@ const Contact = () => {
     message: "",
   });
   const [submitted, setSubmitted] = useState(false);
+  const [error, setError] = useState("");
+  const [sending, setSending] = useState(false);
 
   const handleChange = (e) => {
     setFormData({
       ...formData,
       [e.target.name]: e.target.value,
     });
+    setError("");
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    // TODO: Implement actual form submission to backend
-    console.log("Form submitted:", formData);
-    setSubmitted(true);
-    setTimeout(() => {
-      setSubmitted(false);
-      setFormData({ name: "", email: "", subject: "", message: "" });
-    }, 3000);
+    setError("");
+    setSending(true);
+    try {
+      await api.sendContactMessage(formData);
+      setSubmitted(true);
+      setTimeout(() => {
+        setSubmitted(false);
+        setFormData({ name: "", email: "", subject: "", message: "" });
+      }, 3000);
+    } catch (err) {
+      setError(err.message || "Failed to send message. Please try again.");
+    } finally {
+      setSending(false);
+    }
   };
 
   return (
@@ -134,6 +145,11 @@ const Contact = () => {
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                   />
                 </div>
+                {error && (
+                  <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg">
+                    {error}
+                  </div>
+                )}
                 {submitted && (
                   <div className="bg-green-50 border border-green-200 text-green-800 px-4 py-3 rounded-lg">
                     Thank you! Your message has been sent. We'll get back to you
@@ -142,9 +158,10 @@ const Contact = () => {
                 )}
                 <button
                   type="submit"
-                  className="w-full px-6 py-3 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 transition-colors"
+                  disabled={sending}
+                  className="w-full px-6 py-3 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  Send Message
+                  {sending ? "Sending..." : "Send Message"}
                 </button>
               </form>
             </div>
@@ -160,10 +177,10 @@ const Contact = () => {
                     Email Support
                   </h3>
                   <a
-                    href="mailto:support@referandearn.com"
+                    href="mailto:referandearn88@gmail.com"
                     className="text-indigo-600 hover:underline"
                   >
-                    support@referandearn.com
+                    referandearn88@gmail.com
                   </a>
                   <p className="text-sm text-gray-600 mt-1">
                     For general inquiries and support
@@ -174,10 +191,10 @@ const Contact = () => {
                     Privacy & Legal
                   </h3>
                   <a
-                    href="mailto:privacy@referandearn.com"
+                    href="mailto:referandearn88@gmail.com"
                     className="text-indigo-600 hover:underline"
                   >
-                    privacy@referandearn.com
+                    referandearn88@gmail.com
                   </a>
                   <p className="text-sm text-gray-600 mt-1">
                     For privacy and legal matters

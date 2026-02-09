@@ -62,7 +62,9 @@ const PrivacyPolicy = () => {
                     <li>Name and email address</li>
                     <li>Profile picture (from Google OAuth)</li>
                     <li>Phone number (if provided)</li>
-                    <li>Professional information (company, role, experience)</li>
+                    <li>
+                      Professional information (company, role, experience)
+                    </li>
                     <li>Resume and job application materials</li>
                   </ul>
                 </div>
@@ -95,13 +97,20 @@ const PrivacyPolicy = () => {
                 3. How We Use Your Information
               </h2>
               <ul className="list-disc list-inside space-y-2 ml-4">
-                <li>To provide and maintain our referral marketplace services</li>
+                <li>
+                  To provide and maintain our referral marketplace services
+                </li>
                 <li>To process payments and facilitate transactions</li>
                 <li>To match job seekers with referral providers</li>
                 <li>To communicate with you about your account and services</li>
                 <li>To improve our platform and user experience</li>
-                <li>To send you updates, newsletters, and promotional materials (with your consent)</li>
-                <li>To detect, prevent, and address technical issues and fraud</li>
+                <li>
+                  To send you updates, newsletters, and promotional materials
+                  (with your consent)
+                </li>
+                <li>
+                  To detect, prevent, and address technical issues and fraud
+                </li>
                 <li>To comply with legal obligations</li>
               </ul>
             </section>
@@ -116,9 +125,9 @@ const PrivacyPolicy = () => {
               </p>
               <ul className="list-disc list-inside space-y-2 ml-4">
                 <li>
-                  <strong>With Referral Providers/Seekers:</strong> To facilitate
-                  the referral process, we share relevant information between
-                  matched parties
+                  <strong>With Referral Providers/Seekers:</strong> To
+                  facilitate the referral process, we share relevant information
+                  between matched parties
                 </li>
                 <li>
                   <strong>Service Providers:</strong> With third-party vendors
@@ -145,12 +154,13 @@ const PrivacyPolicy = () => {
                 5. Data Security
               </h2>
               <p className="leading-relaxed">
-                We implement appropriate technical and organizational measures to
-                protect your personal information against unauthorized access,
-                alteration, disclosure, or destruction. However, no method of
-                transmission over the internet or electronic storage is 100%
-                secure. While we strive to use commercially acceptable means to
-                protect your data, we cannot guarantee absolute security.
+                We implement appropriate technical and organizational measures
+                to protect your personal information against unauthorized
+                access, alteration, disclosure, or destruction. However, no
+                method of transmission over the internet or electronic storage
+                is 100% secure. While we strive to use commercially acceptable
+                means to protect your data, we cannot guarantee absolute
+                security.
               </p>
             </section>
 
@@ -165,7 +175,9 @@ const PrivacyPolicy = () => {
                 <li>Request deletion of your personal data</li>
                 <li>Object to processing of your personal data</li>
                 <li>Request restriction of processing</li>
-                <li>Data portability (receive your data in a structured format)</li>
+                <li>
+                  Data portability (receive your data in a structured format)
+                </li>
                 <li>Withdraw consent at any time</li>
                 <li>Opt-out of marketing communications</li>
               </ul>
@@ -178,9 +190,9 @@ const PrivacyPolicy = () => {
               <p className="leading-relaxed">
                 We use cookies and similar tracking technologies to track
                 activity on our platform and store certain information. You can
-                instruct your browser to refuse all cookies or to indicate when a
-                cookie is being sent. However, if you do not accept cookies, you
-                may not be able to use some portions of our platform.
+                instruct your browser to refuse all cookies or to indicate when
+                a cookie is being sent. However, if you do not accept cookies,
+                you may not be able to use some portions of our platform.
               </p>
             </section>
 
@@ -202,10 +214,10 @@ const PrivacyPolicy = () => {
                 9. Children's Privacy
               </h2>
               <p className="leading-relaxed">
-                Our platform is not intended for individuals under the age of 18.
-                We do not knowingly collect personal information from children.
-                If you believe we have collected information from a child, please
-                contact us immediately.
+                Our platform is not intended for individuals under the age of
+                18. We do not knowingly collect personal information from
+                children. If you believe we have collected information from a
+                child, please contact us immediately.
               </p>
             </section>
 
@@ -214,10 +226,10 @@ const PrivacyPolicy = () => {
                 10. Changes to This Privacy Policy
               </h2>
               <p className="leading-relaxed">
-                We may update our Privacy Policy from time to time. We will notify
-                you of any changes by posting the new Privacy Policy on this page
-                and updating the "Last updated" date. You are advised to review
-                this Privacy Policy periodically for any changes.
+                We may update our Privacy Policy from time to time. We will
+                notify you of any changes by posting the new Privacy Policy on
+                this page and updating the "Last updated" date. You are advised
+                to review this Privacy Policy periodically for any changes.
               </p>
             </section>
 
@@ -233,19 +245,19 @@ const PrivacyPolicy = () => {
                 <p>
                   <strong>Email:</strong>{" "}
                   <a
-                    href="mailto:privacy@referandearn.com"
+                    href="mailto:referandearn88@gmail.com"
                     className="text-indigo-600 hover:underline"
                   >
-                    privacy@referandearn.com
+                    referandearn88@gmail.com
                   </a>
                 </p>
                 <p>
                   <strong>Support:</strong>{" "}
                   <a
-                    href="mailto:support@referandearn.com"
+                    href="mailto:referandearn88@gmail.com"
                     className="text-indigo-600 hover:underline"
                   >
-                    support@referandearn.com
+                    referandearn88@gmail.com
                   </a>
                 </p>
               </div>

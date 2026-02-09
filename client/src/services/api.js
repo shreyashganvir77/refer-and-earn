@@ -6,6 +6,7 @@ import { userService } from "./userService";
 import { companiesService } from "./companiesService";
 import { referralsService } from "./referralsService";
 import { paymentsService } from "./paymentsService";
+import { contactService } from "./contactService";
 
 export const api = {
   // Auth
@@ -40,4 +41,7 @@ export const api = {
   verifyPayment: (orderId, paymentId, signature) =>
     paymentsService.verify({ orderId, paymentId, signature }),
   refundPayment: paymentsService.refund,
+
+  // Contact form
+  sendContactMessage: contactService.sendMessage,
 };
