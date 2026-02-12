@@ -44,6 +44,16 @@ function App() {
           }
         />
         <Route
+          path="/edit-profile"
+          element={
+            !isAuthenticated ? (
+              <Navigate to="/login" replace />
+            ) : (
+              <ProfileCompletion />
+            )
+          }
+        />
+        <Route
           path="/"
           element={
             !isAuthenticated ? (
