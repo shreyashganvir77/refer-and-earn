@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { api } from "../services/api";
 import { useAuth } from "../context/AuthContext";
 import { isPersonalEmail, isValidCompanyEmail } from "../utils/emailValidation";
@@ -7,6 +7,7 @@ import { isValidUpiId } from "../utils/upiValidation";
 
 const ProfileCompletion = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const {
     user,
     updateMe,
@@ -121,10 +122,24 @@ const ProfileCompletion = () => {
   }, [form.company_id]);
 
   useEffect(() => {
-    if (!authLoading && user && isProfileComplete && !providerJustActivated) {
+    const isEditProfilePage = location.pathname === "/edit-profile";
+    if (
+      !authLoading &&
+      user &&
+      isProfileComplete &&
+      !providerJustActivated &&
+      !isEditProfilePage
+    ) {
       navigate("/");
     }
-  }, [authLoading, user, isProfileComplete, navigate, providerJustActivated]);
+  }, [
+    authLoading,
+    user,
+    isProfileComplete,
+    navigate,
+    providerJustActivated,
+    location.pathname,
+  ]);
 
   const selectedCompany = useMemo(
     () =>

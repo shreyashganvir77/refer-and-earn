@@ -9,7 +9,9 @@ const Landing = () => {
   const displayName = user?.full_name || user?.name || "User";
   const avatarUrl = user?.picture
     ? user.picture
-    : `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=4F46E5&color=fff`;
+    : `https://ui-avatars.com/api/?name=${encodeURIComponent(
+        displayName
+      )}&background=4F46E5&color=fff`;
 
   console.log("avatarUrl:", avatarUrl);
 
@@ -33,6 +35,12 @@ const Landing = () => {
                     className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-indigo-700 hover:bg-indigo-50 rounded-lg transition-colors"
                   >
                     My Referrals
+                  </button>
+                  <button
+                    onClick={() => navigate("/edit-profile")}
+                    className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-indigo-700 hover:bg-indigo-50 rounded-lg transition-colors"
+                  >
+                    Edit Profile
                   </button>
                   <div className="flex items-center gap-3">
                     <img
