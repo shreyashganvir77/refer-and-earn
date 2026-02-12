@@ -240,7 +240,6 @@ const ProfileCompletion = () => {
                   value={form.company_id}
                   onChange={onChange}
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
-                  required
                 >
                   <option value="">
                     Fresher / Currently not working at any company
