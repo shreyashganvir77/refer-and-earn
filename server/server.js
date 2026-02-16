@@ -47,11 +47,24 @@ const { sendContactFormEmail } = require("./src/emailService");
 const app = express();
 const PORT = process.env.PORT || 8000;
 const API_BASE_URL = process.env.API_BASE_URL || "";
+const FRONTEND_URL = process.env.FRONTEND_URL || "";
 
-// Middleware
+// CORS: allow frontend origin(s) so credentials (cookies) work
+const allowedOrigins = [
+  API_BASE_URL,
+  ...(FRONTEND_URL ? FRONTEND_URL.split(",").map((s) => s.trim()) : []),
+  "https://www.referandearn.co.in",
+  "https://referandearn.co.in",
+].filter(Boolean);
+const allowedSet = new Set(allowedOrigins);
+
 app.use(
   cors({
-    origin: API_BASE_URL,
+    origin: (origin, cb) => {
+      if (!origin) return cb(null, true);
+      if (allowedSet.has(origin)) return cb(null, origin);
+      cb(null, false);
+    },
     credentials: true,
   })
 );
@@ -70,20 +83,30 @@ app.use((req, _res, next) => {
 const COOKIE_MAX_AGE = 8 * 60 * 60 * 1000; // 8 hours, match JWT expiry
 const isProduction = process.env.NODE_ENV === "production";
 
-// SameSite=None required when frontend and backend are on different origins (e.g. app.vercel.app vs api.railway.app)
-// SameSite=None requires Secure=true (HTTPS)
+// Same-site (e.g. api.referandearn.co.in + www.referandearn.co.in): use Lax — more reliable in Safari/mobile
+// Cross-site (e.g. app.vercel.app + api.railway.app): use None (requires Secure)
+const isSameSiteDeploy = allowedOrigins.some(
+  (o) => o && o.includes("referandearn.co.in")
+);
+const cookieSameSite = isProduction && !isSameSiteDeploy ? "none" : "lax";
+const cookieSecure = isProduction;
+
 function setAuthCookie(res, token) {
   res.cookie(COOKIE_NAME, token, {
     httpOnly: true,
-    secure: isProduction,
-    sameSite: isProduction ? "none" : "lax",
+    secure: cookieSecure,
+    sameSite: cookieSameSite,
     maxAge: COOKIE_MAX_AGE,
     path: "/",
   });
 }
 
 function clearAuthCookie(res) {
-  res.clearCookie(COOKIE_NAME, { path: "/" });
+  res.clearCookie(COOKIE_NAME, {
+    path: "/",
+    secure: cookieSecure,
+    sameSite: cookieSameSite,
+  });
 }
 
 // Prefer HttpOnly cookie over Authorization header for requireAuth
