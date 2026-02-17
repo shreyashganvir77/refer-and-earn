@@ -397,18 +397,18 @@ const WantReferral = () => {
         )}
       </div>
 
-      {/* Referral Request Modal */}
+      {/* Referral Request Modal — mobile: shorter; desktop: unchanged */}
       {showResumeModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center px-4 z-50 overflow-y-auto py-8">
-          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full p-6 my-8">
-            <h3 className="text-xl font-bold text-gray-900 mb-2">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center px-4 z-50 overflow-y-auto py-8 max-sm:py-3">
+          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full p-6 my-8 max-sm:p-4 max-sm:my-3">
+            <h3 className="text-xl font-bold text-gray-900 mb-2 max-sm:mb-1 max-sm:text-lg">
               Request Referral
             </h3>
-            <p className="text-sm text-gray-600 mb-4">
+            <p className="text-sm text-gray-600 mb-4 max-sm:mb-2">
               Please fill in all the required information to request a referral.
             </p>
 
-            <div className="mb-6 p-4 rounded-lg bg-gray-50 border border-gray-200">
+            <div className="mb-6 p-4 rounded-lg bg-gray-50 border border-gray-200 max-sm:mb-3 max-sm:p-3">
               <p className="text-sm font-medium text-gray-700">
                 Referral price for{" "}
                 {selectedCompany?.company_name ?? "this company"}:{" "}
@@ -424,7 +424,7 @@ const WantReferral = () => {
               </p>
             </div>
 
-            <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-2">
+            <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-2 max-sm:space-y-3 max-sm:max-h-[50vh]">
               {/* Job ID */}
               <div>
                 <label
@@ -558,7 +558,7 @@ const WantReferral = () => {
                   }
                   placeholder="Write a detailed summary explaining why you need this referral, your background, and how you're a good fit for the role (150-300 words)..."
                   rows={8}
-                  className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 resize-y ${
+                  className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 resize-y max-sm:h-28 max-sm:min-h-0 ${
                     formErrors.referral_summary
                       ? "border-red-300 focus:ring-red-500"
                       : wordCount < 150 || wordCount > 300
@@ -597,7 +597,7 @@ const WantReferral = () => {
               </div>
             </div>
 
-            <div className="flex justify-end gap-3 mt-6 pt-4 border-t">
+            <div className="flex justify-end gap-3 mt-6 pt-4 border-t max-sm:mt-4 max-sm:pt-3">
               <button
                 onClick={() => {
                   setShowResumeModal(false);
