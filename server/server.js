@@ -25,6 +25,7 @@ const {
   getProviderReferrals,
   completeReferral,
   updateReferralStatus,
+  cancelStaleUnpaidReferrals,
 } = require("./src/referralsService");
 const {
   createReview,
@@ -801,6 +802,21 @@ app.post(
     }
   }
 );
+
+// Cron: cancel stale UNPAID referrals (>30 min) - protect with CRON_SECRET
+app.get("/api/cron/cancel-stale-referrals", async (req, res) => {
+  const secret = process.env.CRON_SECRET;
+  if (secret && req.headers["x-cron-secret"] !== secret) {
+    return res.status(401).json({ error: "Unauthorized" });
+  }
+  try {
+    const result = await cancelStaleUnpaidReferrals();
+    return res.json(result);
+  } catch (error) {
+    console.error("Cancel stale referrals failed:", error);
+    return res.status(500).json({ error: error.message });
+  }
+});
 
 // Health check
 app.get("/api/health", (req, res) => {

@@ -165,57 +165,94 @@ async function createReferralRequest(
   const newRequest = insertResult.recordset[0];
   const requestId = newRequest.request_id;
 
-  // Send emails asynchronously (don't block response)
-  Promise.all([
-    // Email to requester
-    (async () => {
-      try {
-        await sendReferralRequestEmailToRequester({
-          to: requester.email,
-          requesterName: requester.full_name,
-          jobId: job_id.trim(),
-          jobTitle: job_title.trim(),
-          companyName: company?.company_name || "N/A",
-        });
-        // Update requester_email_sent_at
-        await pool.request().input("request_id", sql.BigInt, requestId).query(`
-            UPDATE referral_requests
-            SET requester_email_sent_at = SYSUTCDATETIME()
-            WHERE request_id = @request_id
-          `);
-      } catch (error) {
-        console.error("Failed to send requester email:", error);
-      }
-    })(),
-    // Email to provider
-    (async () => {
-      try {
-        await sendReferralRequestEmailToProvider({
-          to: providerDetails?.email,
-          providerName: providerDetails?.full_name || "Provider",
-          requesterName: requester.full_name,
-          requesterEmail: requester.email,
-          requesterPhone: phone_number.trim(),
-          jobId: job_id.trim(),
-          jobTitle: job_title.trim(),
-          resumeLink: resume_link.trim(),
-          referralSummary: referral_summary.trim(),
-        });
-        // Update provider_email_sent_at
-        await pool.request().input("request_id", sql.BigInt, requestId).query(`
-            UPDATE referral_requests
-            SET provider_email_sent_at = SYSUTCDATETIME()
-            WHERE request_id = @request_id
-          `);
-      } catch (error) {
-        console.error("Failed to send provider email:", error);
-      }
-    })(),
-  ]).catch((err) => {
+  // Send email to requester only (provider notification is sent after payment is verified)
+  (async () => {
+    try {
+      await sendReferralRequestEmailToRequester({
+        to: requester.email,
+        requesterName: requester.full_name,
+        jobId: job_id.trim(),
+        jobTitle: job_title.trim(),
+        companyName: company?.company_name || "N/A",
+      });
+      await pool.request().input("request_id", sql.BigInt, requestId).query(`
+          UPDATE referral_requests
+          SET requester_email_sent_at = SYSUTCDATETIME()
+          WHERE request_id = @request_id
+        `);
+    } catch (error) {
+      console.error("Failed to send requester email:", error);
+    }
+  })().catch((err) => {
     console.error("Email sending error:", err);
   });
 
   return { referral_request: newRequest };
+}
+
+/**
+ * Send provider notification after payment is verified.
+ * Called from payments module - provider must NOT be notified before payment.
+ */
+async function sendProviderNotificationAfterPayment(requestId) {
+  const pool = await getPool();
+  const result = await pool.request().input("request_id", sql.BigInt, requestId)
+    .query(`
+      SELECT
+        rr.request_id,
+        rr.resume_link,
+        rr.job_id,
+        rr.job_title,
+        rr.phone_number,
+        rr.referral_summary,
+        rr.provider_email_sent_at
+      FROM referral_requests rr
+      WHERE rr.request_id = @request_id
+        AND rr.payment_status = 'PAID'
+    `);
+  const row = result.recordset[0];
+  if (!row || row.provider_email_sent_at) {
+    return; // Already sent or invalid
+  }
+
+  const [requesterResult, providerResult] = await Promise.all([
+    pool.request().input("request_id", sql.BigInt, requestId).query(`
+      SELECT ru.full_name, ru.email
+      FROM referral_requests rr
+      JOIN users ru ON rr.requester_user_id = ru.user_id
+      WHERE rr.request_id = @request_id
+    `),
+    pool.request().input("request_id", sql.BigInt, requestId).query(`
+      SELECT pu.full_name, pu.email
+      FROM referral_requests rr
+      JOIN users pu ON rr.provider_user_id = pu.user_id
+      WHERE rr.request_id = @request_id
+    `),
+  ]);
+  const requester = requesterResult.recordset[0];
+  const provider = providerResult.recordset[0];
+  if (!requester || !provider?.email) return;
+
+  try {
+    await sendReferralRequestEmailToProvider({
+      to: provider.email,
+      providerName: provider.full_name || "Provider",
+      requesterName: requester.full_name,
+      requesterEmail: requester.email,
+      requesterPhone: row.phone_number || "",
+      jobId: row.job_id || "",
+      jobTitle: row.job_title || "",
+      resumeLink: row.resume_link || "",
+      referralSummary: row.referral_summary || "",
+    });
+    await pool.request().input("request_id", sql.BigInt, requestId).query(`
+      UPDATE referral_requests
+      SET provider_email_sent_at = SYSUTCDATETIME()
+      WHERE request_id = @request_id
+    `);
+  } catch (error) {
+    console.error("Failed to send provider notification after payment:", error);
+  }
 }
 
 /**
@@ -302,6 +339,7 @@ async function getProviderReferrals(providerUserId) {
       LEFT JOIN companies c ON rr.company_id = c.company_id
       LEFT JOIN users ru ON rr.requester_user_id = ru.user_id
       WHERE rr.provider_user_id = @provider_user_id
+        AND rr.payment_status IN ('PAID', 'RELEASED')
       ORDER BY rr.created_at DESC
     `);
 
@@ -377,6 +415,29 @@ async function completeReferral(requestId, providerUserId) {
 }
 
 /**
+ * Auto-cancel UNPAID referrals older than 30 minutes.
+ * Mark status as REJECTED so requester sees it as cancelled.
+ * Can be called by a cron job (e.g. GET /api/cron/cancel-stale-referrals).
+ */
+async function cancelStaleUnpaidReferrals() {
+  const pool = await getPool();
+  const result = await pool.request().query(`
+    UPDATE referral_requests
+    SET status = 'REJECTED',
+        updated_at = SYSUTCDATETIME()
+    OUTPUT INSERTED.request_id
+    WHERE payment_status = 'UNPAID'
+      AND status = 'PENDING'
+      AND created_at < DATEADD(MINUTE, -30, SYSUTCDATETIME())
+  `);
+  const count = result.recordset?.length ?? 0;
+  if (count > 0) {
+    console.log(`Cancelled ${count} stale unpaid referral(s)`);
+  }
+  return { cancelled: count };
+}
+
+/**
  * Update referral request status
  */
 async function updateReferralStatus(requestId, userId, status) {
@@ -423,4 +484,6 @@ module.exports = {
   getProviderReferrals,
   completeReferral,
   updateReferralStatus,
+  sendProviderNotificationAfterPayment,
+  cancelStaleUnpaidReferrals,
 };

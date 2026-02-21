@@ -1,15 +1,16 @@
-import React from 'react';
+import React from "react";
 
 function statusBadge(status) {
-  const base = 'inline-flex items-center px-2 py-0.5 rounded text-xs font-medium';
-  switch ((status || '').toUpperCase()) {
-    case 'COMPLETED':
+  const base =
+    "inline-flex items-center px-2 py-0.5 rounded text-xs font-medium";
+  switch ((status || "").toUpperCase()) {
+    case "COMPLETED":
       return `${base} bg-green-100 text-green-800`;
-    case 'PENDING':
+    case "PENDING":
       return `${base} bg-yellow-100 text-yellow-800`;
-    case 'ACCEPTED':
+    case "ACCEPTED":
       return `${base} bg-blue-100 text-blue-800`;
-    case 'REJECTED':
+    case "REJECTED":
       return `${base} bg-red-100 text-red-800`;
     default:
       return `${base} bg-gray-100 text-gray-800`;
@@ -17,15 +18,16 @@ function statusBadge(status) {
 }
 
 function paymentStatusBadge(status) {
-  const base = 'inline-flex items-center px-2 py-0.5 rounded text-xs font-medium';
-  switch ((status || '').toUpperCase()) {
-    case 'PAID':
+  const base =
+    "inline-flex items-center px-2 py-0.5 rounded text-xs font-medium";
+  switch ((status || "").toUpperCase()) {
+    case "PAID":
       return `${base} bg-green-100 text-green-800`;
-    case 'UNPAID':
+    case "UNPAID":
       return `${base} bg-yellow-100 text-yellow-800`;
-    case 'RELEASED':
+    case "RELEASED":
       return `${base} bg-blue-100 text-blue-800`;
-    case 'REFUNDED':
+    case "REFUNDED":
       return `${base} bg-gray-100 text-gray-800`;
     default:
       return `${base} bg-gray-100 text-gray-800`;
@@ -33,12 +35,12 @@ function paymentStatusBadge(status) {
 }
 
 function statusLabel(s) {
-  const u = (s || '').toUpperCase();
-  if (u === 'COMPLETED') return 'Completed';
-  if (u === 'PENDING') return 'Pending';
-  if (u === 'ACCEPTED') return 'Accepted';
-  if (u === 'REJECTED') return 'Rejected';
-  return s || '—';
+  const u = (s || "").toUpperCase();
+  if (u === "COMPLETED") return "Completed";
+  if (u === "PENDING") return "Pending";
+  if (u === "ACCEPTED") return "Accepted";
+  if (u === "REJECTED") return "Rejected";
+  return s || "—";
 }
 
 /**
@@ -56,33 +58,56 @@ export default function MyReferralRow({
   isProcessingPayment,
   isProcessingRefund,
 }) {
-  const statusUpper = (r?.status || '').toUpperCase();
-  const isCompleted = statusUpper === 'COMPLETED';
-  const ticketOpen = (r?.support_ticket_status || '').toUpperCase() === 'OPEN';
+  const statusUpper = (r?.status || "").toUpperCase();
+  const isCompleted = statusUpper === "COMPLETED";
+  const ticketOpen = (r?.support_ticket_status || "").toUpperCase() === "OPEN";
   const showRefund =
-    r?.payment_status === 'PAID' && statusUpper !== 'ACCEPTED' && statusUpper !== 'COMPLETED';
+    r?.payment_status === "PAID" &&
+    statusUpper !== "ACCEPTED" &&
+    statusUpper !== "COMPLETED";
   const showReview = isCompleted && !ticketOpen && !r?.has_review;
   const showHelp = isCompleted && !ticketOpen;
   const showUnderReview = isCompleted && ticketOpen;
 
-  const priceStr = r?.price_agreed != null ? `₹${Number(r.price_agreed)}` : '—';
+  const priceStr = r?.price_agreed != null ? `₹${Number(r.price_agreed)}` : "—";
+
+  const isUnpaid = (r?.payment_status || "").toUpperCase() === "UNPAID";
 
   return (
-    <article
-      className="border border-gray-200 rounded-lg bg-white p-4 shadow-sm hover:shadow-md hover:border-gray-300 transition-shadow"
-    >
+    <article className="border border-gray-200 rounded-lg bg-white p-4 shadow-sm hover:shadow-md hover:border-gray-300 transition-shadow">
+      {/* Payment Pending banner - request not sent to provider until paid */}
+      {isUnpaid && (
+        <div
+          className="mb-3 rounded-lg bg-amber-50 border border-amber-200 p-3"
+          role="alert"
+        >
+          <p className="text-sm font-medium text-amber-800">Payment Pending</p>
+          <p className="text-sm text-amber-700 mt-0.5">
+            Your referral request has not been sent to the provider. Please
+            complete payment to proceed.
+          </p>
+        </div>
+      )}
+
       {/* Top: provider (left), status + payment + date (right) */}
       <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
-        <span className="font-medium text-gray-900 truncate" title={r?.provider_name}>
-          {r?.provider_name || '—'}
+        <span
+          className="font-medium text-gray-900 truncate"
+          title={r?.provider_name}
+        >
+          {r?.provider_name || "—"}
         </span>
         <div className="flex flex-wrap items-center gap-2 shrink-0">
-          <span className={statusBadge(r?.status)}>{statusLabel(r?.status)}</span>
+          <span className={statusBadge(r?.status)}>
+            {statusLabel(r?.status)}
+          </span>
           {r?.payment_status && (
-            <span className={paymentStatusBadge(r.payment_status)}>{r.payment_status}</span>
+            <span className={paymentStatusBadge(r.payment_status)}>
+              {r.payment_status}
+            </span>
           )}
           <span className="text-gray-500 text-sm">
-            {r?.created_at ? new Date(r.created_at).toLocaleDateString() : '—'}
+            {r?.created_at ? new Date(r.created_at).toLocaleDateString() : "—"}
           </span>
         </div>
       </div>
@@ -90,14 +115,14 @@ export default function MyReferralRow({
       {/* Middle: company, job title, job ID, price — inline with · */}
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-gray-600 mb-3">
         <span className="truncate" title={r?.company_name}>
-          {r?.company_name || 'N/A'}
+          {r?.company_name || "N/A"}
         </span>
         <span className="text-gray-400">·</span>
         <span className="truncate" title={r?.job_title}>
-          {r?.job_title || '—'}
+          {r?.job_title || "—"}
         </span>
         <span className="text-gray-400">·</span>
-        <span>Job ID: {r?.job_id || '—'}</span>
+        <span>Job ID: {r?.job_id || "—"}</span>
         <span className="text-gray-400">·</span>
         <span>{priceStr}</span>
       </div>
@@ -110,18 +135,18 @@ export default function MyReferralRow({
             onClick={onToggleExpand}
             className="text-indigo-600 hover:text-indigo-700 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-1 rounded"
           >
-            {isExpanded ? 'Show less' : 'Read more'}
+            {isExpanded ? "Show less" : "Read more"}
           </button>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          {r?.payment_status === 'UNPAID' && (
+          {r?.payment_status === "UNPAID" && (
             <button
               type="button"
               onClick={() => onPayNow(r?.id)}
               disabled={isProcessingPayment}
               className="px-3 py-1.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {isProcessingPayment ? 'Processing...' : 'Pay Now'}
+              {isProcessingPayment ? "Processing..." : "Complete Payment"}
             </button>
           )}
           {showRefund && (
@@ -131,13 +156,17 @@ export default function MyReferralRow({
               disabled={isProcessingRefund}
               className="px-3 py-1.5 bg-red-600 text-white rounded-lg hover:bg-red-700 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {isProcessingRefund ? 'Processing...' : 'Request Refund'}
+              {isProcessingRefund ? "Processing..." : "Request Refund"}
             </button>
           )}
           {showUnderReview && (
             <div>
-              <span className="text-sm text-amber-700 font-medium">Under Review</span>
-              <p className="text-xs text-gray-500">Your concern has been submitted</p>
+              <span className="text-sm text-amber-700 font-medium">
+                Under Review
+              </span>
+              <p className="text-xs text-gray-500">
+                Your concern has been submitted
+              </p>
             </div>
           )}
           {showReview && (
@@ -158,18 +187,26 @@ export default function MyReferralRow({
               Help / Raise a Concern
             </button>
           )}
-          {!isCompleted && r?.payment_status !== 'UNPAID' && (
-            <p className="text-xs text-gray-500">Waiting for provider to complete</p>
+          {!isCompleted && r?.payment_status !== "UNPAID" && (
+            <p className="text-xs text-gray-500">
+              Waiting for provider to complete
+            </p>
           )}
         </div>
       </div>
 
       {/* Expanded: summary, email, dates */}
       {isExpanded && (
-        <div className="mt-4 pt-4 border-t border-gray-200" role="region" aria-label="Referral details">
+        <div
+          className="mt-4 pt-4 border-t border-gray-200"
+          role="region"
+          aria-label="Referral details"
+        >
           {r?.referral_summary && (
             <div className="mb-3">
-              <p className="text-sm font-medium text-gray-700 mb-1">Your Referral Summary:</p>
+              <p className="text-sm font-medium text-gray-700 mb-1">
+                Your Referral Summary:
+              </p>
               <p className="text-sm text-gray-800 whitespace-pre-wrap leading-relaxed">
                 {r.referral_summary}
               </p>
@@ -178,19 +215,25 @@ export default function MyReferralRow({
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1 text-sm text-gray-700">
             {r?.provider_email && (
               <div>
-                <strong>Provider Email:</strong>{' '}
-                <a href={`mailto:${r.provider_email}`} className="text-indigo-600 hover:underline">
+                <strong>Provider Email:</strong>{" "}
+                <a
+                  href={`mailto:${r.provider_email}`}
+                  className="text-indigo-600 hover:underline"
+                >
                   {r.provider_email}
                 </a>
               </div>
             )}
             <div>
-              <strong>Requested on:</strong>{' '}
-              {r?.created_at ? new Date(r.created_at).toLocaleDateString() : '—'}
+              <strong>Requested on:</strong>{" "}
+              {r?.created_at
+                ? new Date(r.created_at).toLocaleDateString()
+                : "—"}
             </div>
             {r?.completed_at && (
               <div>
-                <strong>Completed on:</strong> {new Date(r.completed_at).toLocaleString()}
+                <strong>Completed on:</strong>{" "}
+                {new Date(r.completed_at).toLocaleString()}
               </div>
             )}
           </div>
