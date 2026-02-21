@@ -69,18 +69,18 @@ async function sendReferralRequestEmailToRequester({
   }
 
   const from = `"${gmailFromName}" <${gmailUser}>`;
-  const subject = "Referral Request Submitted – Pending";
+  const subject = "Referral Request Submitted – Payment Pending";
   const text = `Hi ${requesterName},
 
-Your referral request has been successfully submitted and is now pending.
+Your referral request has been submitted and is now pending.
 
 Details:
 - Job ID: ${jobId || "N/A"}
 - Job Title: ${jobTitle || "N/A"}
 - Provider Company: ${companyName || "N/A"}
-- Status: Pending
+- Status: Payment Pending
 
-The referral provider will review your request and update the status accordingly.
+Important: Your request has NOT been sent to the provider yet. Please complete payment to send your request and allow the provider to review it.
 
 Best regards,
 Refer & Earn Platform`;
@@ -89,14 +89,14 @@ Refer & Earn Platform`;
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
       <h2 style="color: #4F46E5;">Referral Request Submitted</h2>
       <p>Hi ${requesterName},</p>
-      <p>Your referral request has been successfully submitted and is now <strong>pending</strong>.</p>
+      <p>Your referral request has been submitted and is now <strong>pending</strong>.</p>
       <div style="background-color: #F3F4F6; padding: 16px; border-radius: 8px; margin: 20px 0;">
         <p><strong>Job ID:</strong> ${jobId || "N/A"}</p>
         <p><strong>Job Title:</strong> ${jobTitle || "N/A"}</p>
         <p><strong>Provider Company:</strong> ${companyName || "N/A"}</p>
-        <p><strong>Status:</strong> <span style="color: #F59E0B; font-weight: bold;">Pending</span></p>
+        <p><strong>Status:</strong> <span style="color: #F59E0B; font-weight: bold;">Payment Pending</span></p>
       </div>
-      <p>The referral provider will review your request and update the status accordingly.</p>
+      <p><strong>Important:</strong> Your request has not been sent to the provider yet. Please complete payment to send your request and allow the provider to review it.</p>
       <p>Best regards,<br>Refer & Earn Platform</p>
     </div>
   `;
