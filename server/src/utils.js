@@ -53,6 +53,7 @@ const ALLOWED_REQUEST_STATUSES = new Set([
   "ACCEPTED",
   "COMPLETED",
   "REJECTED",
+  "NEEDS_UPDATE",
 ]);
 
 module.exports = {

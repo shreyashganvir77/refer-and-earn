@@ -48,7 +48,7 @@ const MyReferrals = () => {
   const [processingPayment, setProcessingPayment] = useState(null);
   const [processingRefund, setProcessingRefund] = useState(null);
   const [expandedId, setExpandedId] = useState(null);
-  const [statusFilter, setStatusFilter] = useState('ACTIVE');
+  const [statusFilter, setStatusFilter] = useState("ACTIVE");
 
   const [reviewModalRef, setReviewModalRef] = useState(null);
   const [reviewStars, setReviewStars] = useState(0);
@@ -62,6 +62,18 @@ const MyReferrals = () => {
   const [helpSubmitting, setHelpSubmitting] = useState(false);
   const [helpError, setHelpError] = useState(null);
   const [helpConfirming, setHelpConfirming] = useState(false);
+
+  const [editModalRef, setEditModalRef] = useState(null);
+  const [editFormData, setEditFormData] = useState({
+    resume_link: "",
+    job_id: "",
+    job_title: "",
+    referral_summary: "",
+  });
+  const [editFormErrors, setEditFormErrors] = useState({});
+  const [editSubmitting, setEditSubmitting] = useState(false);
+  const [editError, setEditError] = useState(null);
+  const [messagesByReferralId, setMessagesByReferralId] = useState({});
 
   const loadReferrals = React.useCallback(async () => {
     try {
@@ -136,6 +148,88 @@ const MyReferrals = () => {
     setHelpConfirming(true);
   };
 
+  const handleOpenEditModal = (ref) => {
+    setEditModalRef(ref);
+    setEditFormData({
+      resume_link: ref.resume_link || "",
+      job_id: ref.job_id || "",
+      job_title: ref.job_title || "",
+      referral_summary: ref.referral_summary || "",
+    });
+    setEditFormErrors({});
+    setEditError(null);
+  };
+
+  const handleCloseEditModal = () => {
+    setEditModalRef(null);
+    setEditFormData({
+      resume_link: "",
+      job_id: "",
+      job_title: "",
+      referral_summary: "",
+    });
+    setEditFormErrors({});
+    setEditError(null);
+  };
+
+  const handleLoadMessages = async (referralId) => {
+    try {
+      const { messages } = await api.getReferralMessages(referralId);
+      setMessagesByReferralId((prev) => ({
+        ...prev,
+        [referralId]: messages || [],
+      }));
+    } catch (err) {
+      console.error("Failed to load messages:", err);
+      setMessagesByReferralId((prev) => ({ ...prev, [referralId]: [] }));
+    }
+  };
+
+  const validateEditForm = () => {
+    const errors = {};
+    if (!editFormData.resume_link?.trim())
+      errors.resume_link = "Resume link is required";
+    else {
+      try {
+        new URL(editFormData.resume_link.trim());
+      } catch {
+        errors.resume_link = "Please enter a valid URL";
+      }
+    }
+    if (!editFormData.job_id?.trim()) errors.job_id = "Job ID is required";
+    if (!editFormData.job_title?.trim())
+      errors.job_title = "Job title is required";
+    const words = (editFormData.referral_summary || "")
+      .trim()
+      .split(/\s+/)
+      .filter(Boolean);
+    if (words.length < 150 || words.length > 300) {
+      errors.referral_summary = `Referral summary must be 150–300 words (current: ${words.length})`;
+    }
+    setEditFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  const handleSubmitEdit = async () => {
+    if (!editModalRef || !validateEditForm()) return;
+    setEditSubmitting(true);
+    setEditError(null);
+    try {
+      await api.updateReferralDetails(editModalRef.id, {
+        resume_link: editFormData.resume_link.trim(),
+        job_id: editFormData.job_id.trim(),
+        job_title: editFormData.job_title.trim(),
+        referral_summary: editFormData.referral_summary.trim(),
+      });
+      handleCloseEditModal();
+      await loadReferrals();
+    } catch (err) {
+      setEditError(err.message || "Failed to update referral");
+    } finally {
+      setEditSubmitting(false);
+    }
+  };
+
   const handleSubmitHelp = async () => {
     if (!helpModalRef || !helpIssueType || !helpDescription.trim()) return;
     setHelpSubmitting(true);
@@ -171,7 +265,7 @@ const MyReferrals = () => {
             await api.verifyPayment(
               response.razorpay_order_id,
               response.razorpay_payment_id,
-              response.razorpay_signature,
+              response.razorpay_signature
             );
             alert("Payment successful!");
             // Reload referrals
@@ -199,7 +293,7 @@ const MyReferrals = () => {
       const razorpay = new window.Razorpay(options);
       razorpay.on("payment.failed", (response) => {
         alert(
-          `Payment failed: ${response.error.description || "Unknown error"}`,
+          `Payment failed: ${response.error.description || "Unknown error"}`
         );
         setProcessingPayment(null);
       });
@@ -215,7 +309,7 @@ const MyReferrals = () => {
   const handleRefund = async (referralId) => {
     if (
       !window.confirm(
-        "Are you sure you want to request a refund? This action cannot be undone.",
+        "Are you sure you want to request a refund? This action cannot be undone."
       )
     ) {
       return;
@@ -238,31 +332,35 @@ const MyReferrals = () => {
 
   // Filter logic
   const filteredReferrals = referrals.filter((req) => {
-    const status = (req.status || '').toUpperCase();
-    if (statusFilter === 'ACTIVE') {
-      return status === 'PENDING' || status === 'ACCEPTED';
+    const status = (req.status || "").toUpperCase();
+    if (statusFilter === "ACTIVE") {
+      return (
+        status === "PENDING" ||
+        status === "ACCEPTED" ||
+        status === "NEEDS_UPDATE"
+      );
     }
-    if (statusFilter === 'COMPLETED') {
-      return status === 'COMPLETED';
+    if (statusFilter === "COMPLETED") {
+      return status === "COMPLETED";
     }
-    if (statusFilter === 'REJECTED') {
-      return status === 'REJECTED';
+    if (statusFilter === "REJECTED") {
+      return status === "REJECTED";
     }
     return false;
   });
 
   // Calculate counts
-  const activeCount = referrals.filter(
-    (req) => {
-      const status = (req.status || '').toUpperCase();
-      return status === 'PENDING' || status === 'ACCEPTED';
-    }
-  ).length;
+  const activeCount = referrals.filter((req) => {
+    const status = (req.status || "").toUpperCase();
+    return (
+      status === "PENDING" || status === "ACCEPTED" || status === "NEEDS_UPDATE"
+    );
+  }).length;
   const completedCount = referrals.filter(
-    (req) => (req.status || '').toUpperCase() === 'COMPLETED'
+    (req) => (req.status || "").toUpperCase() === "COMPLETED"
   ).length;
   const rejectedCount = referrals.filter(
-    (req) => (req.status || '').toUpperCase() === 'REJECTED'
+    (req) => (req.status || "").toUpperCase() === "REJECTED"
   ).length;
 
   return (
@@ -342,32 +440,32 @@ const MyReferrals = () => {
               {/* Filter Buttons */}
               <div className="flex flex-wrap items-center gap-3 mb-6 pb-4 border-b border-gray-200">
                 <button
-                  onClick={() => setStatusFilter('ACTIVE')}
+                  onClick={() => setStatusFilter("ACTIVE")}
                   className={`px-4 py-2 rounded-lg font-medium text-sm transition-colors ${
-                    statusFilter === 'ACTIVE'
-                      ? 'bg-indigo-600 text-white'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    statusFilter === "ACTIVE"
+                      ? "bg-indigo-600 text-white"
+                      : "bg-gray-100 text-gray-700 hover:bg-gray-200"
                   }`}
                 >
                   Active ({activeCount})
                 </button>
                 <button
-                  onClick={() => setStatusFilter('COMPLETED')}
+                  onClick={() => setStatusFilter("COMPLETED")}
                   className={`px-4 py-2 rounded-lg font-medium text-sm transition-colors ${
-                    statusFilter === 'COMPLETED'
-                      ? 'bg-indigo-600 text-white'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    statusFilter === "COMPLETED"
+                      ? "bg-indigo-600 text-white"
+                      : "bg-gray-100 text-gray-700 hover:bg-gray-200"
                   }`}
                 >
                   Completed ({completedCount})
                 </button>
                 {rejectedCount > 0 && (
                   <button
-                    onClick={() => setStatusFilter('REJECTED')}
+                    onClick={() => setStatusFilter("REJECTED")}
                     className={`px-4 py-2 rounded-lg font-medium text-sm transition-colors ${
-                      statusFilter === 'REJECTED'
-                        ? 'bg-indigo-600 text-white'
-                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      statusFilter === "REJECTED"
+                        ? "bg-indigo-600 text-white"
+                        : "bg-gray-100 text-gray-700 hover:bg-gray-200"
                     }`}
                   >
                     Rejected ({rejectedCount})
@@ -392,9 +490,11 @@ const MyReferrals = () => {
                     />
                   </svg>
                   <p className="text-gray-600 text-lg">
-                    {statusFilter === 'ACTIVE' && 'No active referral requests'}
-                    {statusFilter === 'COMPLETED' && 'No completed referral requests'}
-                    {statusFilter === 'REJECTED' && 'No rejected referral requests'}
+                    {statusFilter === "ACTIVE" && "No active referral requests"}
+                    {statusFilter === "COMPLETED" &&
+                      "No completed referral requests"}
+                    {statusFilter === "REJECTED" &&
+                      "No rejected referral requests"}
                   </p>
                 </div>
               ) : (
@@ -405,14 +505,22 @@ const MyReferrals = () => {
                       request={ref}
                       isExpanded={expandedId === ref.id}
                       onToggleExpand={() =>
-                        setExpandedId((prev) => (prev === ref.id ? null : ref.id))
+                        setExpandedId((prev) =>
+                          prev === ref.id ? null : ref.id
+                        )
                       }
                       onPayNow={handlePayNow}
                       onRefund={handleRefund}
                       onReview={handleOpenReviewModal}
                       onHelp={handleOpenHelpModal}
+                      onEditReferral={handleOpenEditModal}
+                      messages={messagesByReferralId[ref.id]}
+                      onLoadMessages={handleLoadMessages}
                       isProcessingPayment={processingPayment === ref.id}
                       isProcessingRefund={processingRefund === ref.id}
+                      isUpdatingReferral={
+                        editSubmitting && editModalRef?.id === ref.id
+                      }
                     />
                   ))}
                 </div>
@@ -488,6 +596,138 @@ const MyReferrals = () => {
                 className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {reviewSubmitting ? "Submitting…" : "Submit"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Referral modal (when NEEDS_UPDATE) */}
+      {editModalRef && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto">
+          <div className="bg-white rounded-xl shadow-xl max-w-lg w-full p-6 my-8">
+            <h3 className="text-lg font-bold text-gray-900 mb-2">
+              Edit Referral Details
+            </h3>
+            <p className="text-sm text-gray-600 mb-4">
+              The provider requested changes. Update the details below and
+              resubmit.
+            </p>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Resume Link <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="url"
+                  value={editFormData.resume_link}
+                  onChange={(e) =>
+                    setEditFormData((prev) => ({
+                      ...prev,
+                      resume_link: e.target.value,
+                    }))
+                  }
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                  placeholder="https://..."
+                />
+                {editFormErrors.resume_link && (
+                  <p className="mt-1 text-sm text-red-600">
+                    {editFormErrors.resume_link}
+                  </p>
+                )}
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Job ID <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={editFormData.job_id}
+                  onChange={(e) =>
+                    setEditFormData((prev) => ({
+                      ...prev,
+                      job_id: e.target.value,
+                    }))
+                  }
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                  placeholder="e.g. 12345"
+                />
+                {editFormErrors.job_id && (
+                  <p className="mt-1 text-sm text-red-600">
+                    {editFormErrors.job_id}
+                  </p>
+                )}
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Job Title <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={editFormData.job_title}
+                  onChange={(e) =>
+                    setEditFormData((prev) => ({
+                      ...prev,
+                      job_title: e.target.value,
+                    }))
+                  }
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                  placeholder="e.g. Software Engineer"
+                />
+                {editFormErrors.job_title && (
+                  <p className="mt-1 text-sm text-red-600">
+                    {editFormErrors.job_title}
+                  </p>
+                )}
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Referral Summary (150–300 words){" "}
+                  <span className="text-red-500">*</span>
+                </label>
+                <textarea
+                  value={editFormData.referral_summary}
+                  onChange={(e) =>
+                    setEditFormData((prev) => ({
+                      ...prev,
+                      referral_summary: e.target.value,
+                    }))
+                  }
+                  rows={6}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none resize-y"
+                  placeholder="Why you're a good fit for this role..."
+                />
+                <p className="mt-1 text-xs text-gray-500">
+                  {editFormData.referral_summary
+                    ?.trim()
+                    .split(/\s+/)
+                    .filter(Boolean).length || 0}{" "}
+                  / 150–300 words
+                </p>
+                {editFormErrors.referral_summary && (
+                  <p className="mt-1 text-sm text-red-600">
+                    {editFormErrors.referral_summary}
+                  </p>
+                )}
+              </div>
+            </div>
+            {editError && (
+              <p className="mt-2 text-sm text-red-600">{editError}</p>
+            )}
+            <div className="flex justify-end gap-2 mt-6">
+              <button
+                onClick={handleCloseEditModal}
+                disabled={editSubmitting}
+                className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 text-sm font-medium disabled:opacity-60"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSubmitEdit}
+                disabled={editSubmitting}
+                className="px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {editSubmitting ? "Updating…" : "Submit Update"}
               </button>
             </div>
           </div>

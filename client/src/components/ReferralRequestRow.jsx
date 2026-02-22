@@ -12,6 +12,8 @@ function statusBadge(status) {
       return `${base} bg-blue-100 text-blue-800`;
     case "REJECTED":
       return `${base} bg-red-100 text-red-800`;
+    case "NEEDS_UPDATE":
+      return `${base} bg-amber-100 text-amber-800`;
     default:
       return `${base} bg-gray-100 text-gray-800`;
   }
@@ -25,24 +27,31 @@ export default function ReferralRequestRow({
   isExpanded,
   onToggleExpand,
   onMarkCompleteClick,
+  onRequestUpdateClick,
   isCompleting,
+  isRequestingUpdate,
 }) {
-  const isPending = (req?.status || "").toUpperCase() === "PENDING";
+  const statusUpper = (req?.status || "").toUpperCase();
+  const isPending = statusUpper === "PENDING";
+  const isNeedsUpdate = statusUpper === "NEEDS_UPDATE";
+  const isAccepted = statusUpper === "ACCEPTED";
+  const canRequestUpdate = (isPending || isAccepted) && !isNeedsUpdate;
+  const canMarkComplete = isPending && !isNeedsUpdate;
   const statusLabel =
-    (req?.status || "").toUpperCase() === "COMPLETED"
+    statusUpper === "COMPLETED"
       ? "Completed"
-      : (req?.status || "").toUpperCase() === "PENDING"
-        ? "Pending"
-        : (req?.status || "").toUpperCase() === "ACCEPTED"
-          ? "Accepted"
-          : (req?.status || "").toUpperCase() === "REJECTED"
-            ? "Rejected"
-            : req?.status || "—";
+      : statusUpper === "PENDING"
+      ? "Pending"
+      : statusUpper === "ACCEPTED"
+      ? "Accepted"
+      : statusUpper === "REJECTED"
+      ? "Rejected"
+      : statusUpper === "NEEDS_UPDATE"
+      ? "Needs Update"
+      : req?.status || "—";
 
   return (
-    <article
-      className="border border-gray-200 rounded-lg bg-white p-4 shadow-sm hover:shadow-md hover:border-gray-300 transition-shadow"
-    >
+    <article className="border border-gray-200 rounded-lg bg-white p-4 shadow-sm hover:shadow-md hover:border-gray-300 transition-shadow">
       {/* Top: name (left), status + date (right) */}
       <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
         <span
@@ -96,8 +105,18 @@ export default function ReferralRequestRow({
             </button>
           ) : null}
         </div>
-        <div>
-          {isPending && (
+        <div className="flex flex-wrap items-center gap-2">
+          {canRequestUpdate && (
+            <button
+              type="button"
+              onClick={onRequestUpdateClick}
+              disabled={isRequestingUpdate}
+              className="px-3 py-1.5 bg-amber-600 text-white rounded-lg hover:bg-amber-700 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-1"
+            >
+              {isRequestingUpdate ? "Sending…" : "Request Update"}
+            </button>
+          )}
+          {canMarkComplete && (
             <button
               type="button"
               onClick={onMarkCompleteClick}
@@ -107,7 +126,12 @@ export default function ReferralRequestRow({
               {isCompleting ? "Updating…" : "Mark as Completed"}
             </button>
           )}
-          {!isPending && (req?.status || "").toUpperCase() === "COMPLETED" && (
+          {isNeedsUpdate && (
+            <span className="text-amber-700 text-sm font-medium">
+              Waiting for requester to update
+            </span>
+          )}
+          {!isPending && !isNeedsUpdate && statusUpper === "COMPLETED" && (
             <span className="text-green-700 text-sm font-medium">
               Completed
             </span>

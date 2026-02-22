@@ -386,6 +386,11 @@ async function completeReferral(requestId, providerUserId) {
   if (existing.status === "COMPLETED") {
     return { referral_request: existing };
   }
+  if (existing.status === "NEEDS_UPDATE") {
+    throw new Error(
+      "Cannot complete referral until requester updates the details"
+    );
+  }
   if (existing.status !== "PENDING") {
     throw new Error("Can only complete pending referrals");
   }
@@ -478,12 +483,202 @@ async function updateReferralStatus(requestId, userId, status) {
   return { referral_request: updateResult.recordset[0] };
 }
 
+/**
+ * Request update from requester (provider action).
+ * Inserts message and sets status to NEEDS_UPDATE.
+ */
+async function requestReferralUpdate(requestId, providerUserId, message) {
+  const msg = typeof message === "string" ? message.trim() : "";
+  if (!msg || msg.length === 0) {
+    throw new Error("message is required");
+  }
+  if (msg.length > 2000) {
+    throw new Error("message must be at most 2000 characters");
+  }
+
+  const pool = await getPool();
+  const existingResult = await pool
+    .request()
+    .input("request_id", sql.BigInt, requestId)
+    .query(
+      "SELECT TOP 1 * FROM referral_requests WHERE request_id = @request_id"
+    );
+  const existing = existingResult.recordset[0];
+  if (!existing) {
+    throw new Error("Not found");
+  }
+  if (String(existing.provider_user_id) !== String(providerUserId)) {
+    throw new Error("Forbidden");
+  }
+  if (existing.status === "COMPLETED") {
+    throw new Error("Cannot request update for completed referral");
+  }
+
+  const requesterUserId = existing.requester_user_id;
+  await pool
+    .request()
+    .input("referral_request_id", sql.BigInt, requestId)
+    .input("sender_user_id", sql.BigInt, providerUserId)
+    .input("receiver_user_id", sql.BigInt, requesterUserId)
+    .input("message_text", sql.NVarChar(2000), msg).query(`
+      INSERT INTO referral_messages
+        (referral_request_id, sender_user_id, receiver_user_id, message_text)
+      VALUES
+        (@referral_request_id, @sender_user_id, @receiver_user_id, @message_text)
+    `);
+
+  const updateResult = await pool
+    .request()
+    .input("request_id", sql.BigInt, requestId).query(`
+      UPDATE referral_requests
+      SET status = 'NEEDS_UPDATE',
+          updated_at = SYSUTCDATETIME()
+      OUTPUT INSERTED.*
+      WHERE request_id = @request_id
+    `);
+
+  return { referral_request: updateResult.recordset[0] };
+}
+
+/**
+ * Get messages for a referral request.
+ */
+async function getReferralMessages(referralRequestId, userId) {
+  const pool = await getPool();
+  const existingResult = await pool
+    .request()
+    .input("request_id", sql.BigInt, referralRequestId).query(`
+      SELECT requester_user_id, provider_user_id
+      FROM referral_requests
+      WHERE request_id = @request_id
+    `);
+  const existing = existingResult.recordset[0];
+  if (!existing) {
+    throw new Error("Not found");
+  }
+  const isRequester = String(existing.requester_user_id) === String(userId);
+  const isProvider = String(existing.provider_user_id) === String(userId);
+  if (!isRequester && !isProvider) {
+    throw new Error("Forbidden");
+  }
+
+  const result = await pool
+    .request()
+    .input("referral_request_id", sql.BigInt, referralRequestId).query(`
+      SELECT
+        rm.message_id,
+        rm.referral_request_id,
+        rm.sender_user_id,
+        rm.receiver_user_id,
+        rm.message_text,
+        rm.created_at,
+        u.full_name AS sender_name
+      FROM referral_messages rm
+      LEFT JOIN users u ON rm.sender_user_id = u.user_id
+      WHERE rm.referral_request_id = @referral_request_id
+      ORDER BY rm.created_at ASC
+    `);
+
+  const messages = result.recordset.map((row) => ({
+    message_id: String(row.message_id),
+    referral_request_id: String(row.referral_request_id),
+    sender_user_id: String(row.sender_user_id),
+    receiver_user_id: String(row.receiver_user_id),
+    message_text: row.message_text || "",
+    created_at: row.created_at,
+    sender_name: row.sender_name || "Unknown",
+    is_from_provider:
+      String(row.sender_user_id) === String(existing.provider_user_id),
+  }));
+
+  return { messages };
+}
+
+/**
+ * Update referral details (requester action).
+ * Allowed only when status is NEEDS_UPDATE.
+ * Sets status back to PENDING.
+ */
+async function updateReferralDetails(requestId, requesterUserId, updates) {
+  const pool = await getPool();
+  const existingResult = await pool
+    .request()
+    .input("request_id", sql.BigInt, requestId)
+    .query(
+      "SELECT TOP 1 * FROM referral_requests WHERE request_id = @request_id"
+    );
+  const existing = existingResult.recordset[0];
+  if (!existing) {
+    throw new Error("Not found");
+  }
+  if (String(existing.requester_user_id) !== String(requesterUserId)) {
+    throw new Error("Forbidden");
+  }
+  if (existing.status !== "NEEDS_UPDATE") {
+    throw new Error(
+      "Can only update details when provider has requested changes"
+    );
+  }
+
+  const resume_link =
+    updates.resume_link != null
+      ? String(updates.resume_link || "").trim()
+      : existing.resume_link;
+  const job_id =
+    updates.job_id != null
+      ? String(updates.job_id || "").trim()
+      : existing.job_id;
+  const job_title =
+    updates.job_title != null
+      ? String(updates.job_title || "").trim()
+      : existing.job_title;
+  const referral_summary =
+    updates.referral_summary != null
+      ? String(updates.referral_summary || "").trim()
+      : existing.referral_summary;
+
+  if (!resume_link || !job_id || !job_title || !referral_summary) {
+    throw new Error(
+      "resume_link, job_id, job_title, and referral_summary are required"
+    );
+  }
+  const wordCount = referral_summary.split(/\s+/).filter(Boolean).length;
+  if (wordCount < 150 || wordCount > 300) {
+    throw new Error(
+      `referral_summary must be between 150 and 300 words (current: ${wordCount} words)`
+    );
+  }
+
+  const updateResult = await pool
+    .request()
+    .input("request_id", sql.BigInt, requestId)
+    .input("resume_link", sql.NVarChar(1000), resume_link)
+    .input("job_id", sql.NVarChar(200), job_id)
+    .input("job_title", sql.NVarChar(300), job_title)
+    .input("referral_summary", sql.NVarChar(2000), referral_summary).query(`
+      UPDATE referral_requests
+      SET status = 'PENDING',
+          resume_link = @resume_link,
+          job_id = @job_id,
+          job_title = @job_title,
+          referral_summary = @referral_summary,
+          updated_at = SYSUTCDATETIME()
+      OUTPUT INSERTED.*
+      WHERE request_id = @request_id
+    `);
+
+  return { referral_request: updateResult.recordset[0] };
+}
+
 module.exports = {
   createReferralRequest,
   getRequestedReferrals,
   getProviderReferrals,
   completeReferral,
   updateReferralStatus,
+  requestReferralUpdate,
+  getReferralMessages,
+  updateReferralDetails,
   sendProviderNotificationAfterPayment,
   cancelStaleUnpaidReferrals,
 };
