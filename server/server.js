@@ -25,6 +25,9 @@ const {
   getProviderReferrals,
   completeReferral,
   updateReferralStatus,
+  requestReferralUpdate,
+  getReferralMessages,
+  updateReferralDetails,
   cancelStaleUnpaidReferrals,
 } = require("./src/referralsService");
 const {
@@ -404,6 +407,90 @@ app.get("/api/provider/referrals", requireAuth, async (req, res) => {
     return res
       .status(500)
       .json({ error: error.message || "Failed to get provider referrals" });
+  }
+});
+
+// ---- Provider: request update from requester ----
+app.post("/api/referrals/request-update", requireAuth, async (req, res) => {
+  try {
+    const providerUserId = parseBigIntParam(req.auth.sub);
+    if (!providerUserId) return res.status(401).json({ error: "Unauthorized" });
+
+    const { referral_request_id, message } = req.body || {};
+    const requestId = parseBigIntParam(referral_request_id);
+    if (!requestId) {
+      return res.status(400).json({ error: "referral_request_id is required" });
+    }
+
+    const result = await requestReferralUpdate(
+      requestId,
+      providerUserId,
+      message || ""
+    );
+    return res.json(result);
+  } catch (error) {
+    const status =
+      error.message === "Not found"
+        ? 404
+        : error.message === "Forbidden"
+        ? 403
+        : 400;
+    return res
+      .status(status)
+      .json({ error: error.message || "Failed to request update" });
+  }
+});
+
+// ---- Get messages for a referral ----
+app.get("/api/referrals/:id/messages", requireAuth, async (req, res) => {
+  try {
+    const userId = parseBigIntParam(req.auth.sub);
+    if (!userId) return res.status(401).json({ error: "Unauthorized" });
+
+    const requestId = parseBigIntParam(req.params.id);
+    if (!requestId) return res.status(400).json({ error: "Invalid id" });
+
+    const result = await getReferralMessages(requestId, userId);
+    return res.json(result);
+  } catch (error) {
+    const status =
+      error.message === "Not found"
+        ? 404
+        : error.message === "Forbidden"
+        ? 403
+        : 500;
+    return res
+      .status(status)
+      .json({ error: error.message || "Failed to fetch messages" });
+  }
+});
+
+// ---- Requester: update referral details (when NEEDS_UPDATE) ----
+app.patch("/api/referrals/:id/details", requireAuth, async (req, res) => {
+  try {
+    const requesterUserId = parseBigIntParam(req.auth.sub);
+    if (!requesterUserId)
+      return res.status(401).json({ error: "Unauthorized" });
+
+    const requestId = parseBigIntParam(req.params.id);
+    if (!requestId) return res.status(400).json({ error: "Invalid id" });
+
+    const result = await updateReferralDetails(
+      requestId,
+      requesterUserId,
+      req.body || {}
+    );
+    return res.json(result);
+  } catch (error) {
+    const status =
+      error.message === "Not found"
+        ? 404
+        : error.message === "Forbidden"
+        ? 403
+        : 400;
+    return res
+      .status(status)
+      .json({ error: error.message || "Failed to update referral" });
   }
 });
 

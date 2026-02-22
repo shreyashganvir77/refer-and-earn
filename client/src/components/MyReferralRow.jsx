@@ -12,6 +12,8 @@ function statusBadge(status) {
       return `${base} bg-blue-100 text-blue-800`;
     case "REJECTED":
       return `${base} bg-red-100 text-red-800`;
+    case "NEEDS_UPDATE":
+      return `${base} bg-amber-100 text-amber-800`;
     default:
       return `${base} bg-gray-100 text-gray-800`;
   }
@@ -40,6 +42,7 @@ function statusLabel(s) {
   if (u === "PENDING") return "Pending";
   if (u === "ACCEPTED") return "Accepted";
   if (u === "REJECTED") return "Rejected";
+  if (u === "NEEDS_UPDATE") return "Needs Update";
   return s || "—";
 }
 
@@ -55,11 +58,16 @@ export default function MyReferralRow({
   onRefund,
   onReview,
   onHelp,
+  onEditReferral,
+  messages,
+  onLoadMessages,
   isProcessingPayment,
   isProcessingRefund,
+  isUpdatingReferral,
 }) {
   const statusUpper = (r?.status || "").toUpperCase();
   const isCompleted = statusUpper === "COMPLETED";
+  const isNeedsUpdate = statusUpper === "NEEDS_UPDATE";
   const ticketOpen = (r?.support_ticket_status || "").toUpperCase() === "OPEN";
   const showRefund =
     r?.payment_status === "PAID" &&
@@ -75,6 +83,32 @@ export default function MyReferralRow({
 
   return (
     <article className="border border-gray-200 rounded-lg bg-white p-4 shadow-sm hover:shadow-md hover:border-gray-300 transition-shadow">
+      {/* Needs Update banner - provider requested changes */}
+      {isNeedsUpdate && (
+        <div
+          className="mb-3 rounded-lg bg-amber-50 border border-amber-200 p-3"
+          role="alert"
+        >
+          <p className="text-sm font-medium text-amber-800">
+            Provider requested changes to your referral
+          </p>
+          <p className="text-sm text-amber-700 mt-0.5">
+            Please update the details below and resubmit. See the message
+            history for details.
+          </p>
+          {onEditReferral && (
+            <button
+              type="button"
+              onClick={() => onEditReferral(r)}
+              disabled={isUpdatingReferral}
+              className="mt-3 px-3 py-1.5 bg-amber-600 text-white rounded-lg hover:bg-amber-700 text-sm font-medium disabled:opacity-50"
+            >
+              {isUpdatingReferral ? "Updating…" : "Edit Referral"}
+            </button>
+          )}
+        </div>
+      )}
+
       {/* Payment Pending banner - request not sent to provider until paid */}
       {isUnpaid && (
         <div
@@ -187,7 +221,7 @@ export default function MyReferralRow({
               Help / Raise a Concern
             </button>
           )}
-          {!isCompleted && r?.payment_status !== "UNPAID" && (
+          {!isCompleted && !isNeedsUpdate && r?.payment_status !== "UNPAID" && (
             <p className="text-xs text-gray-500">
               Waiting for provider to complete
             </p>
@@ -195,13 +229,57 @@ export default function MyReferralRow({
         </div>
       </div>
 
-      {/* Expanded: summary, email, dates */}
+      {/* Expanded: summary, email, dates, messages (for NEEDS_UPDATE) */}
       {isExpanded && (
         <div
           className="mt-4 pt-4 border-t border-gray-200"
           role="region"
           aria-label="Referral details"
         >
+          {isNeedsUpdate && onLoadMessages && (
+            <div className="mb-4">
+              <p className="text-sm font-medium text-gray-700 mb-2">
+                Messages from provider
+              </p>
+              {messages === undefined ? (
+                <button
+                  type="button"
+                  onClick={() => onLoadMessages(r?.id)}
+                  className="text-indigo-600 hover:text-indigo-700 text-sm font-medium"
+                >
+                  Load messages
+                </button>
+              ) : Array.isArray(messages) && messages.length > 0 ? (
+                <div className="space-y-2 max-h-48 overflow-y-auto">
+                  {messages.map((m) => (
+                    <div
+                      key={m.message_id}
+                      className="rounded-lg bg-gray-50 p-3 text-sm"
+                    >
+                      <p className="text-gray-600 font-medium mb-1">
+                        {m.sender_name}
+                        {m.is_from_provider && (
+                          <span className="ml-2 text-amber-700">
+                            (Provider)
+                          </span>
+                        )}
+                        <span className="ml-2 text-gray-400 text-xs">
+                          {m.created_at
+                            ? new Date(m.created_at).toLocaleString()
+                            : ""}
+                        </span>
+                      </p>
+                      <p className="text-gray-800 whitespace-pre-wrap">
+                        {m.message_text}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-gray-500">No messages yet</p>
+              )}
+            </div>
+          )}
           {r?.referral_summary && (
             <div className="mb-3">
               <p className="text-sm font-medium text-gray-700 mb-1">

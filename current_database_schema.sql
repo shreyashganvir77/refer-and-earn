@@ -240,9 +240,42 @@ ALTER TABLE [dbo].[referral_requests]  WITH CHECK ADD  CONSTRAINT [ck_referral_r
 GO
 ALTER TABLE [dbo].[referral_requests] CHECK CONSTRAINT [ck_referral_requests_requester_not_provider]
 GO
-ALTER TABLE [dbo].[referral_requests]  WITH CHECK ADD  CONSTRAINT [ck_referral_requests_status] CHECK  (([status]=N'REJECTED' OR [status]=N'COMPLETED' OR [status]=N'ACCEPTED' OR [status]=N'PENDING'))
+ALTER TABLE [dbo].[referral_requests]  WITH CHECK ADD  CONSTRAINT [ck_referral_requests_status] CHECK  (([status]=N'REJECTED' OR [status]=N'COMPLETED' OR [status]=N'ACCEPTED' OR [status]=N'PENDING' OR [status]=N'NEEDS_UPDATE'))
 GO
 ALTER TABLE [dbo].[referral_requests] CHECK CONSTRAINT [ck_referral_requests_status]
+GO
+
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+CREATE TABLE [dbo].[referral_messages](
+	[message_id] [bigint] IDENTITY(1,1) NOT NULL,
+	[referral_request_id] [bigint] NOT NULL,
+	[sender_user_id] [bigint] NOT NULL,
+	[receiver_user_id] [bigint] NOT NULL,
+	[message_text] [nvarchar](2000) NOT NULL,
+	[created_at] [datetime2](3) NULL
+) ON [PRIMARY]
+GO
+ALTER TABLE [dbo].[referral_messages] ADD  CONSTRAINT [pk_referral_messages] PRIMARY KEY CLUSTERED ([message_id] ASC)
+GO
+ALTER TABLE [dbo].[referral_messages] ADD  CONSTRAINT [df_referral_messages_created_at]  DEFAULT (sysutcdatetime()) FOR [created_at]
+GO
+ALTER TABLE [dbo].[referral_messages]  WITH CHECK ADD  CONSTRAINT [fk_referral_messages_referral] FOREIGN KEY([referral_request_id])
+REFERENCES [dbo].[referral_requests] ([request_id])
+GO
+ALTER TABLE [dbo].[referral_messages] CHECK CONSTRAINT [fk_referral_messages_referral]
+GO
+ALTER TABLE [dbo].[referral_messages]  WITH CHECK ADD  CONSTRAINT [fk_referral_messages_sender] FOREIGN KEY([sender_user_id])
+REFERENCES [dbo].[users] ([user_id])
+GO
+ALTER TABLE [dbo].[referral_messages] CHECK CONSTRAINT [fk_referral_messages_sender]
+GO
+ALTER TABLE [dbo].[referral_messages]  WITH CHECK ADD  CONSTRAINT [fk_referral_messages_receiver] FOREIGN KEY([receiver_user_id])
+REFERENCES [dbo].[users] ([user_id])
+GO
+ALTER TABLE [dbo].[referral_messages] CHECK CONSTRAINT [fk_referral_messages_receiver]
 GO
 
 

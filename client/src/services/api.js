@@ -33,6 +33,9 @@ export const api = {
   requestedReferrals: referralsService.requested,
   providerReferrals: referralsService.providerReferrals,
   completeReferral: referralsService.complete,
+  requestReferralUpdate: referralsService.requestUpdate,
+  getReferralMessages: referralsService.getMessages,
+  updateReferralDetails: referralsService.updateDetails,
   submitProviderReview: referralsService.submitProviderReview,
   createSupportTicket: referralsService.createSupportTicket,
 

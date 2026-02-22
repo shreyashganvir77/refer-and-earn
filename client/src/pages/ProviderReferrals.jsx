@@ -41,7 +41,11 @@ const ProviderReferrals = () => {
   const [completingId, setCompletingId] = useState(null);
   const [confirmId, setConfirmId] = useState(null);
   const [expandedRequestId, setExpandedRequestId] = useState(null);
-  const [statusFilter, setStatusFilter] = useState('ACTIVE');
+  const [statusFilter, setStatusFilter] = useState("ACTIVE");
+  const [requestUpdateRef, setRequestUpdateRef] = useState(null);
+  const [requestUpdateMessage, setRequestUpdateMessage] = useState("");
+  const [requestUpdateSubmitting, setRequestUpdateSubmitting] = useState(false);
+  const [requestUpdateError, setRequestUpdateError] = useState(null);
 
   const fetchReferrals = useMemo(
     () => async () => {
@@ -55,7 +59,7 @@ const ProviderReferrals = () => {
         setLoading(false);
       }
     },
-    [],
+    []
   );
 
   useEffect(() => {
@@ -75,33 +79,67 @@ const ProviderReferrals = () => {
     }
   };
 
+  const handleOpenRequestUpdate = (ref) => {
+    setRequestUpdateRef(ref);
+    setRequestUpdateMessage("");
+    setRequestUpdateError(null);
+  };
+
+  const handleCloseRequestUpdate = () => {
+    setRequestUpdateRef(null);
+    setRequestUpdateMessage("");
+    setRequestUpdateError(null);
+  };
+
+  const handleSubmitRequestUpdate = async () => {
+    if (!requestUpdateRef || !requestUpdateMessage.trim()) return;
+    setRequestUpdateSubmitting(true);
+    setRequestUpdateError(null);
+    try {
+      await api.requestReferralUpdate(
+        requestUpdateRef.id,
+        requestUpdateMessage.trim()
+      );
+      handleCloseRequestUpdate();
+      await fetchReferrals();
+    } catch (err) {
+      setRequestUpdateError(err.message || "Failed to send update request");
+    } finally {
+      setRequestUpdateSubmitting(false);
+    }
+  };
+
   // Filter logic
   const filteredReferrals = referrals.filter((req) => {
-    const status = (req.status || '').toUpperCase();
-    if (statusFilter === 'ACTIVE') {
-      return status === 'PENDING' || status === 'ACCEPTED';
+    const status = (req.status || "").toUpperCase();
+    if (statusFilter === "ACTIVE") {
+      return (
+        status === "PENDING" ||
+        status === "ACCEPTED" ||
+        status === "NEEDS_UPDATE"
+      );
     }
-    if (statusFilter === 'COMPLETED') {
-      return status === 'COMPLETED';
+    if (statusFilter === "COMPLETED") {
+      return status === "COMPLETED";
     }
-    if (statusFilter === 'REJECTED') {
-      return status === 'REJECTED';
+    if (statusFilter === "REJECTED") {
+      return status === "REJECTED";
     }
     return false;
   });
 
   // Calculate counts
-  const activeCount = referrals.filter(
-    (req) => {
-      const status = (req.status || '').toUpperCase();
-      return status === 'PENDING' || status === 'ACCEPTED';
-    }
-  ).length;
+  const activeCount = referrals.filter((req) => {
+    const status = (req.status || "").toUpperCase();
+    return (
+      status === "PENDING" || status === "ACCEPTED" || status === "NEEDS_UPDATE"
+    );
+  }).length;
   const completedCount = referrals.filter(
-    (req) => (req.status || '').toUpperCase() === 'COMPLETED'
+    (req) => (req.status || "").toUpperCase() === "COMPLETED"
   ).length;
   const rejectedCount = referrals.filter(
-    (req) => (req.status || '').toUpperCase() === 'REJECTED'
+    (req) => (req.status || "").toUpperCase() === "REJECTED"
   ).length;
 
   return (
@@ -172,32 +210,32 @@ const ProviderReferrals = () => {
               {/* Filter Buttons */}
               <div className="flex flex-wrap items-center gap-3 mb-6 pb-4 border-b border-gray-200">
                 <button
-                  onClick={() => setStatusFilter('ACTIVE')}
+                  onClick={() => setStatusFilter("ACTIVE")}
                   className={`px-4 py-2 rounded-lg font-medium text-sm transition-colors ${
-                    statusFilter === 'ACTIVE'
-                      ? 'bg-indigo-600 text-white'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    statusFilter === "ACTIVE"
+                      ? "bg-indigo-600 text-white"
+                      : "bg-gray-100 text-gray-700 hover:bg-gray-200"
                   }`}
                 >
                   Active ({activeCount})
                 </button>
                 <button
-                  onClick={() => setStatusFilter('COMPLETED')}
+                  onClick={() => setStatusFilter("COMPLETED")}
                   className={`px-4 py-2 rounded-lg font-medium text-sm transition-colors ${
-                    statusFilter === 'COMPLETED'
-                      ? 'bg-indigo-600 text-white'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    statusFilter === "COMPLETED"
+                      ? "bg-indigo-600 text-white"
+                      : "bg-gray-100 text-gray-700 hover:bg-gray-200"
                   }`}
                 >
                   Completed ({completedCount})
                 </button>
                 {rejectedCount > 0 && (
                   <button
-                    onClick={() => setStatusFilter('REJECTED')}
+                    onClick={() => setStatusFilter("REJECTED")}
                     className={`px-4 py-2 rounded-lg font-medium text-sm transition-colors ${
-                      statusFilter === 'REJECTED'
-                        ? 'bg-indigo-600 text-white'
-                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      statusFilter === "REJECTED"
+                        ? "bg-indigo-600 text-white"
+                        : "bg-gray-100 text-gray-700 hover:bg-gray-200"
                     }`}
                   >
                     Rejected ({rejectedCount})
@@ -222,9 +260,11 @@ const ProviderReferrals = () => {
                     />
                   </svg>
                   <p className="text-gray-600 text-lg">
-                    {statusFilter === 'ACTIVE' && 'No active referral requests'}
-                    {statusFilter === 'COMPLETED' && 'No completed referral requests'}
-                    {statusFilter === 'REJECTED' && 'No rejected referral requests'}
+                    {statusFilter === "ACTIVE" && "No active referral requests"}
+                    {statusFilter === "COMPLETED" &&
+                      "No completed referral requests"}
+                    {statusFilter === "REJECTED" &&
+                      "No rejected referral requests"}
                   </p>
                 </div>
               ) : (
@@ -236,11 +276,16 @@ const ProviderReferrals = () => {
                       isExpanded={expandedRequestId === ref.id}
                       onToggleExpand={() =>
                         setExpandedRequestId((prev) =>
-                          prev === ref.id ? null : ref.id,
+                          prev === ref.id ? null : ref.id
                         )
                       }
                       onMarkCompleteClick={() => setConfirmId(ref.id)}
+                      onRequestUpdateClick={() => handleOpenRequestUpdate(ref)}
                       isCompleting={completingId === ref.id}
+                      isRequestingUpdate={
+                        requestUpdateSubmitting &&
+                        requestUpdateRef?.id === ref.id
+                      }
                     />
                   ))}
                 </div>
@@ -249,6 +294,53 @@ const ProviderReferrals = () => {
           )}
         </div>
       </main>
+
+      {/* Request Update modal */}
+      {requestUpdateRef && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center px-4 z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+            <h3 className="text-lg font-bold text-gray-900 mb-2">
+              Request Update
+            </h3>
+            <p className="text-sm text-gray-600 mb-4">
+              Explain what needs to be corrected. The requester will be notified
+              and must update before you can complete this referral.
+            </p>
+            <textarea
+              value={requestUpdateMessage}
+              onChange={(e) => setRequestUpdateMessage(e.target.value)}
+              rows={4}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none resize-y mb-4"
+              placeholder="e.g. Please upload an updated resume. Job ID is missing."
+              maxLength={2000}
+            />
+            <p className="text-xs text-gray-500 mb-4">
+              {requestUpdateMessage.length}/2000 characters
+            </p>
+            {requestUpdateError && (
+              <p className="text-sm text-red-600 mb-4">{requestUpdateError}</p>
+            )}
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={handleCloseRequestUpdate}
+                disabled={requestUpdateSubmitting}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-60"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSubmitRequestUpdate}
+                disabled={
+                  requestUpdateSubmitting || !requestUpdateMessage.trim()
+                }
+                className="px-4 py-2 text-sm font-medium text-white bg-amber-600 rounded-lg hover:bg-amber-700 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+              >
+                {requestUpdateSubmitting ? "Sending…" : "Send Request"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Confirmation modal */}
       {confirmId && (
